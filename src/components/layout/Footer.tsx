@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles, Twitter, Instagram, Facebook, Youtube, Mail, MapPin } from "lucide-react";
+import { Sparkles, MessageCircle, Camera, Users, Play, Mail, MapPin } from "lucide-react";
 
 const footerLinks = {
   Shop: [
@@ -28,10 +28,10 @@ const footerLinks = {
 };
 
 const socials = [
-  { icon: Twitter, label: "Twitter", href: "https://twitter.com" },
-  { icon: Instagram, label: "Instagram", href: "https://instagram.com" },
-  { icon: Facebook, label: "Facebook", href: "https://facebook.com" },
-  { icon: Youtube, label: "YouTube", href: "https://youtube.com" },
+  { icon: MessageCircle, label: "Twitter / X", href: "https://twitter.com" },
+  { icon: Camera, label: "Instagram", href: "https://instagram.com" },
+  { icon: Users, label: "Facebook", href: "https://facebook.com" },
+  { icon: Play, label: "YouTube", href: "https://youtube.com" },
 ];
 
 export default function Footer() {

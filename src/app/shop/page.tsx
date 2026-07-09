@@ -16,7 +16,7 @@ const sortOptions = [
 ];
 
 async function ProductGrid() {
-  let products = [];
+  let products: Awaited<ReturnType<typeof getProducts>> = [];
   try {
     products = await getProducts();
   } catch {
