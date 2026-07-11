@@ -24,8 +24,10 @@ const navLinks = [
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [heroBg, setHeroBg] = useState<string | null>(null);
   const { totalItems } = useCart();
   const pathname = usePathname();
+  const isHome = pathname === "/";
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 20);
@@ -33,14 +35,28 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
+  // Read hero bg CSS variable once mounted (set by the hero section via <style>)
+  useEffect(() => {
+    if (!isHome) { setHeroBg(null); return; }
+    const from = getComputedStyle(document.documentElement).getPropertyValue("--hero-bg-from").trim();
+    if (from) setHeroBg(from);
+  }, [isHome, pathname]);
+
+  const navBg = isHome && !scrolled && heroBg
+    ? `${heroBg}e6`   // hero color at ~90% opacity
+    : undefined;
+
   return (
     <header
       className={cn(
         "fixed top-0 inset-x-0 z-50 transition-all duration-300",
         scrolled
           ? "bg-white/90 backdrop-blur-md border-b border-zinc-200 shadow-sm"
-          : "bg-white/80 backdrop-blur-sm border-b border-zinc-100"
+          : isHome && heroBg
+            ? "backdrop-blur-sm border-b border-white/20"
+            : "bg-white/80 backdrop-blur-sm border-b border-zinc-100"
       )}
+      style={navBg ? { backgroundColor: navBg } : undefined}
     >
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         {/* Logo */}

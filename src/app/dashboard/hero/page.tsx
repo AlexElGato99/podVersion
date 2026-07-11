@@ -38,6 +38,8 @@ interface HeroSettings {
   subtitle: string;
   cta_primary_text: string;
   cta_primary_link: string;
+  cta_secondary_text: string;
+  cta_secondary_link: string;
   bg_from: string;
   bg_to: string;
   main_image_url: string;
@@ -56,6 +58,8 @@ const DEFAULTS: HeroSettings = {
   subtitle: "Turn your ideas into premium products that leave a lasting impression",
   cta_primary_text: "Shop Now",
   cta_primary_link: "/shop",
+  cta_secondary_text: "View Collections",
+  cta_secondary_link: "/collections",
   bg_from: "#d4f1f9",
   bg_to: "#bde8f7",
   main_image_url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&auto=format&fit=crop&q=80",
@@ -316,8 +320,15 @@ export default function HeroSettingsPage() {
             <div style={{ flex: 1 }}>
               <h2 style={{ fontSize: 22, fontWeight: 800, color: "#111827", margin: "0 0 10px 0", whiteSpace: "pre-line" }}>{settings.headline}</h2>
               <p style={{ fontSize: 13, color: "#4b5563", margin: "0 0 16px 0" }}>{settings.subtitle}</p>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 999, background: "#5b4fe9", color: "#fff", fontSize: 13, fontWeight: 600 }}>
-                {settings.cta_primary_text} →
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 999, background: "#5b4fe9", color: "#fff", fontSize: 13, fontWeight: 600 }}>
+                  {settings.cta_primary_text} →
+                </div>
+                {settings.cta_secondary_text && (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 999, border: "2px solid rgba(0,0,0,0.2)", background: "rgba(255,255,255,0.6)", color: "#1f2937", fontSize: 13, fontWeight: 600 }}>
+                    {settings.cta_secondary_text}
+                  </div>
+                )}
               </div>
             </div>
             <div style={{ position: "relative", flexShrink: 0 }}>
@@ -344,12 +355,19 @@ export default function HeroSettingsPage() {
 
         {/* CTA + Background */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-          <SectionCard icon={MousePointerClick} title="CTA Button">
-            <Field label="Button Text">
-              <input type="text" value={settings.cta_primary_text} onChange={(e) => set("cta_primary_text", e.target.value)} style={inputStyle} />
+          <SectionCard icon={MousePointerClick} title="CTA Buttons">
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "-10px 0 14px 0" }}>Primary button is always shown. Leave Secondary text blank to hide it.</p>
+            <Field label="Primary Button Text">
+              <input type="text" value={settings.cta_primary_text} onChange={(e) => set("cta_primary_text", e.target.value)} style={inputStyle} placeholder="Shop Now" />
             </Field>
-            <Field label="Button Link" hint="e.g. /shop, /collections, or a full URL">
+            <Field label="Primary Button Link" hint="e.g. /shop">
               <input type="text" value={settings.cta_primary_link} onChange={(e) => set("cta_primary_link", e.target.value)} style={inputStyle} />
+            </Field>
+            <Field label="Secondary Button Text" hint="Leave blank to hide the second button">
+              <input type="text" value={settings.cta_secondary_text} onChange={(e) => set("cta_secondary_text", e.target.value)} style={inputStyle} placeholder="View Collections" />
+            </Field>
+            <Field label="Secondary Button Link">
+              <input type="text" value={settings.cta_secondary_link} onChange={(e) => set("cta_secondary_link", e.target.value)} style={inputStyle} placeholder="/collections" />
             </Field>
           </SectionCard>
 

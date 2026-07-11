@@ -28,6 +28,8 @@ interface HeroSettings {
   subtitle: string;
   cta_primary_text: string;
   cta_primary_link: string;
+  cta_secondary_text: string;
+  cta_secondary_link: string;
   bg_from: string;
   bg_to: string;
   main_image_url: string;
@@ -39,6 +41,8 @@ const HERO_DEFAULTS: HeroSettings = {
   subtitle: "Turn your ideas into premium products that leave a lasting impression",
   cta_primary_text: "Shop Now",
   cta_primary_link: "/shop",
+  cta_secondary_text: "View Collections",
+  cta_secondary_link: "/collections",
   bg_from: "#d4f1f9",
   bg_to: "#bde8f7",
   main_image_url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&auto=format&fit=crop&q=80",
@@ -57,21 +61,23 @@ async function getHeroSettings(): Promise<HeroSettings> {
     if (data) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id: _id, updated_at: _u, ...rest } = data;
-      const s = rest as HeroSettings;
-      // Normalize legacy positions from old DB schema so cards always fill all 4 slots
+      // Merge with defaults so any missing DB columns are filled
+      const merged: HeroSettings = { ...HERO_DEFAULTS, ...rest };
+      // Normalize legacy positions
       const TARGET: FloatingCard["position"][] = ["top-left", "bottom-left", "top-right", "bottom-right"];
-      const taken = new Set(s.floating_cards.map((c) => c.position));
+      const cards: FloatingCard[] = merged.floating_cards || HERO_DEFAULTS.floating_cards;
+      const taken = new Set(cards.map((c) => c.position));
       const missing = TARGET.filter((p) => !taken.has(p));
       let missingIdx = 0;
-      s.floating_cards = s.floating_cards.map((c) => {
+      merged.floating_cards = cards.map((c) => {
         const valid = TARGET.includes(c.position as FloatingCard["position"]);
-        if (!valid || (taken.has(c.position) && s.floating_cards.filter((x) => x.position === c.position).length > 1)) {
+        if (!valid || (taken.has(c.position) && cards.filter((x) => x.position === c.position).length > 1)) {
           const newPos = missing[missingIdx++] ?? TARGET[0];
           return { ...c, position: newPos };
         }
         return c;
       });
-      return s;
+      return merged;
     }
   } catch { /* fall through to defaults */ }
   return HERO_DEFAULTS;
@@ -87,10 +93,10 @@ const CARD_ANIM: Record<FloatingCard["position"], { anim: string; style: React.C
 
 /* Position styles for each floating card slot — cards sit BEHIND the main image (zIndex: 5) */
 const CARD_POS: Record<FloatingCard["position"], React.CSSProperties> = {
-  "top-left":     { position: "absolute", left: "-4%",  top: "8%",    zIndex: 5 },
-  "bottom-left":  { position: "absolute", left: "-4%",  bottom: "8%", zIndex: 5 },
-  "top-right":    { position: "absolute", right: "-4%", top: "8%",    zIndex: 5 },
-  "bottom-right": { position: "absolute", right: "-4%", bottom: "8%", zIndex: 5 },
+  "top-left":     { position: "absolute", left: "2%",  top: "6%",    zIndex: 5 },
+  "bottom-left":  { position: "absolute", left: "2%",  bottom: "6%", zIndex: 5 },
+  "top-right":    { position: "absolute", right: "2%", top: "6%",    zIndex: 5 },
+  "bottom-right": { position: "absolute", right: "2%", bottom: "6%", zIndex: 5 },
 };
 
 async function getFeaturedProducts() {
@@ -142,9 +148,12 @@ export default async function HomePage() {
       {/* Hero */}
       <section
         className="relative overflow-hidden pt-20"
-        style={{ background: `linear-gradient(135deg, ${hero.bg_from} 0%, ${hero.bg_to} 100%)` }}
+        style={{
+          background: `linear-gradient(135deg, ${hero.bg_from} 0%, ${hero.bg_to} 100%)`,
+        }}
       >
-        {/* Blue circle blob behind image */}
+        {/* Inject hero bg color as a CSS variable on :root so Navbar can read it */}
+        <style dangerouslySetInnerHTML={{ __html: `:root { --hero-bg-from: ${hero.bg_from}; --hero-bg-to: ${hero.bg_to}; }` }} />
         {/* Blue circle blob behind image — animated pulse */}
         <div
           className="hero-blob pointer-events-none absolute right-[8%] top-[10%] h-[520px] w-[520px] rounded-full"
@@ -167,17 +176,17 @@ export default async function HomePage() {
         />
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid min-h-[calc(100vh-80px)] items-center gap-0 lg:grid-cols-2">
+          <div className="grid min-h-[calc(100vh-80px)] items-stretch gap-0 lg:grid-cols-2">
 
             {/* Left: Text */}
-            <div className="relative z-10 py-20 text-center lg:text-left">
+            <div className="relative z-10 flex flex-col justify-center py-20 text-center lg:text-left">
               <h1 className="text-5xl font-extrabold leading-tight tracking-tight text-zinc-900 sm:text-6xl lg:text-[64px]">
                 {hero.headline}
               </h1>
               <p className="mx-auto mt-6 max-w-sm text-base text-zinc-600 lg:mx-0">
                 {hero.subtitle}
               </p>
-              <div className="mt-10 flex justify-center lg:justify-start">
+              <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row lg:justify-start">
                 <Link
                   href={hero.cta_primary_link}
                   className="inline-flex items-center gap-3 rounded-full bg-[#5b4fe9] px-9 py-4 text-base font-semibold text-white shadow-lg transition-all hover:bg-[#4a3fd8] hover:shadow-xl active:scale-95"
@@ -185,11 +194,19 @@ export default async function HomePage() {
                   {hero.cta_primary_text}
                   <ArrowRight className="h-5 w-5" />
                 </Link>
+                {hero.cta_secondary_text && (
+                  <Link
+                    href={hero.cta_secondary_link || "/collections"}
+                    className="inline-flex items-center gap-2 rounded-full border-2 border-zinc-700/30 bg-white/60 px-8 py-4 text-base font-semibold text-zinc-800 backdrop-blur-sm transition-all hover:bg-white/90 hover:border-zinc-700/50 active:scale-95"
+                  >
+                    {hero.cta_secondary_text}
+                  </Link>
+                )}
               </div>
             </div>
 
             {/* Right: Product image + animated floating design cards */}
-            <div className="relative flex items-end justify-center pb-0 pt-10 lg:pt-0">
+            <div className="relative flex self-stretch items-end justify-center">
               {hero.floating_cards.map((card) => {
                 const pos = card.position;
                 const { anim, style: animStyle } = CARD_ANIM[pos] ?? CARD_ANIM["top-left"];
@@ -225,13 +242,13 @@ export default async function HomePage() {
                 );
               })}
 
-              {/* Main product image — z-index above the cards (zIndex 5) */}
+              {/* Main product image — anchored to bottom, z-index above the cards */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={hero.main_image_url}
                 alt="Custom T-Shirts"
-                className="relative h-[520px] w-auto object-cover object-top"
-                style={{ zIndex: 10, filter: "drop-shadow(0 20px 40px rgba(0,0,0,0.15))" }}
+                className="relative w-auto object-cover object-bottom"
+                style={{ zIndex: 10, height: "90%", maxHeight: 600, alignSelf: "flex-end", filter: "drop-shadow(0 20px 40px rgba(0,0,0,0.2))" }}
               />
             </div>
           </div>
