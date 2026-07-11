@@ -38,8 +38,8 @@ export default function Navbar() {
       className={cn(
         "fixed top-0 inset-x-0 z-50 transition-all duration-300",
         scrolled
-          ? "bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/60 shadow-xl shadow-zinc-950/50"
-          : "bg-transparent"
+          ? "bg-white/90 backdrop-blur-md border-b border-zinc-200 shadow-sm"
+          : "bg-white/80 backdrop-blur-sm border-b border-zinc-100"
       )}
     >
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
@@ -58,8 +58,8 @@ export default function Navbar() {
               className={cn(
                 "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                 pathname === link.href
-                  ? "text-brand-400 bg-brand-950/60"
-                  : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60"
+                  ? "text-brand-600 bg-brand-50"
+                  : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
               )}
             >
               {link.label}
@@ -110,7 +110,7 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-zinc-800 bg-zinc-950/95 backdrop-blur-md px-4 pb-6 pt-4">
+        <div className="md:hidden border-t border-zinc-100 bg-white px-4 pb-6 pt-4">
           <div className="flex flex-col gap-1">
             {navLinks.map((link) => (
               <Link
@@ -120,18 +120,18 @@ export default function Navbar() {
                 className={cn(
                   "rounded-lg px-4 py-3 text-sm font-medium transition-colors",
                   pathname === link.href
-                    ? "text-brand-400 bg-brand-950/60"
-                    : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+                    ? "text-brand-600 bg-brand-50"
+                    : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
                 )}
               >
                 {link.label}
               </Link>
             ))}
-            <hr className="my-3 border-zinc-800" />
+            <hr className="my-3 border-zinc-100" />
             <Link
               href="/account"
               onClick={() => setMobileOpen(false)}
-              className="flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+              className="flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
             >
               <User className="h-4 w-4" />
               Account

@@ -6,9 +6,10 @@ async function printfulFetch(path: string, options: RequestInit = {}) {
     headers: {
       Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}`,
       "Content-Type": "application/json",
+      "X-PF-Store-Id": process.env.PRINTFUL_STORE_ID ?? "",
       ...options.headers,
     },
-    next: { revalidate: 3600 },
+    next: { revalidate: 60 }, // re-fetch every 60 seconds
   });
 
   if (!res.ok) {
@@ -42,9 +43,23 @@ export interface PrintfulProductDetail {
   sync_variants: PrintfulVariant[];
 }
 
-export async function getProducts(): Promise<PrintfulProduct[]> {
+export async function getProducts(): Promise<(PrintfulProduct & { starting_price: string | null })[]> {
   const data = await printfulFetch("/store/products?limit=50");
-  return data.result ?? [];
+  const products: PrintfulProduct[] = data.result ?? [];
+
+  const withPrices = await Promise.all(
+    products.map(async (p) => {
+      try {
+        const detail: PrintfulProductDetail = await printfulFetch(`/store/products/${p.id}`);
+        const price = detail.sync_variants?.[0]?.retail_price ?? null;
+        return { ...p, starting_price: price };
+      } catch {
+        return { ...p, starting_price: null };
+      }
+    })
+  );
+
+  return withPrices;
 }
 
 export async function getProduct(id: string): Promise<PrintfulProductDetail> {

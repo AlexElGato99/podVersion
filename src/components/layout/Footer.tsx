@@ -36,7 +36,7 @@ const socials = [
 
 export default function Footer() {
   return (
-    <footer className="border-t border-zinc-800 bg-zinc-950 mt-24">
+    <footer className="border-t border-zinc-200 bg-zinc-50 mt-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
           {/* Brand */}
@@ -56,7 +56,7 @@ export default function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={label}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 transition-all hover:border-brand-600 hover:text-brand-400 hover:bg-brand-950/40"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition-all hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50"
                 >
                   <Icon className="h-4 w-4" />
                 </a>
@@ -67,7 +67,7 @@ export default function Footer() {
           {/* Links */}
           {Object.entries(footerLinks).map(([category, links]) => (
             <div key={category}>
-              <h3 className="mb-4 text-sm font-semibold text-zinc-100">
+              <h3 className="mb-4 text-sm font-semibold text-zinc-900">
                 {category}
               </h3>
               <ul className="space-y-3">
@@ -75,7 +75,7 @@ export default function Footer() {
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+                      className="text-sm text-zinc-500 hover:text-brand-600 transition-colors"
                     >
                       {link.label}
                     </Link>
@@ -86,7 +86,7 @@ export default function Footer() {
           ))}
         </div>
 
-        <hr className="my-10 border-zinc-800" />
+        <hr className="my-10 border-zinc-200" />
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-zinc-600">
           <p>© {new Date().getFullYear()} PrintDrop. All rights reserved.</p>
@@ -94,7 +94,7 @@ export default function Footer() {
             <Mail className="h-4 w-4" />
             <a
               href="mailto:hello@printdrop.store"
-              className="hover:text-zinc-400 transition-colors"
+              className="hover:text-brand-600 transition-colors"
             >
               hello@printdrop.store
             </a>
