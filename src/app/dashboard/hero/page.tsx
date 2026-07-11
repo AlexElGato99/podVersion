@@ -268,7 +268,7 @@ export default function HeroSettingsPage() {
   }, [settings, supabase]);
 
   const set = (key: keyof HeroSettings, value: string) => setSettings((s) => ({ ...s, [key]: value }));
-  const setCard = (id: string, key: keyof FloatingCard, value: string) =>
+  const setCard = (id: string, key: keyof FloatingCard, value: string | boolean) =>
     setSettings((s) => ({ ...s, floating_cards: s.floating_cards.map((c) => c.id === id ? { ...c, [key]: value } : c) }));
 
   if (loading) {
