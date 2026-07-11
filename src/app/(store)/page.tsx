@@ -19,6 +19,7 @@ interface FloatingCard {
   label: string;
   sublabel: string;
   bg: string;
+  bg_disabled?: boolean;
   text_color: string;
   position: "top-left" | "bottom-left" | "top-right" | "bottom-right";
 }
@@ -219,7 +220,8 @@ export default async function HomePage() {
                     className={`${anim} overflow-hidden rounded-2xl shadow-xl`}
                     style={{
                       ...posStyle,
-                      background: card.bg,
+                      background: card.bg_disabled ? "transparent" : card.bg,
+                      boxShadow: card.bg_disabled ? "none" : undefined,
                       color: card.text_color,
                       ...(isLabel ? { width: 130, padding: "12px 16px" } : { width: 110, height: 110 }),
                       ...animStyle,

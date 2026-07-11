@@ -29,6 +29,7 @@ interface FloatingCard {
   label: string;
   sublabel: string;
   bg: string;
+  bg_disabled: boolean;
   text_color: string;
   position: "top-left" | "bottom-left" | "top-right" | "bottom-right";
 }
@@ -64,10 +65,10 @@ const DEFAULTS: HeroSettings = {
   bg_to: "#bde8f7",
   main_image_url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&auto=format&fit=crop&q=80",
   floating_cards: [
-    { id: "1", emoji: "🐼", image_url: "", label: "", sublabel: "", bg: "#0d3d5f", text_color: "#ffffff", position: "top-left" },
-    { id: "2", emoji: "👨‍🚀", image_url: "", label: "", sublabel: "", bg: "#d4eaff", text_color: "#374151", position: "bottom-left" },
-    { id: "3", emoji: "", image_url: "", label: "Company Name", sublabel: "Slogan Here", bg: "#ffffff", text_color: "#374151", position: "top-right" },
-    { id: "4", emoji: "🚛", image_url: "", label: "", sublabel: "", bg: "#ffffff", text_color: "#374151", position: "bottom-right" },
+    { id: "1", emoji: "🐼", image_url: "", label: "", sublabel: "", bg: "#0d3d5f", bg_disabled: false, text_color: "#ffffff", position: "top-left" },
+    { id: "2", emoji: "👨‍🚀", image_url: "", label: "", sublabel: "", bg: "#d4eaff", bg_disabled: false, text_color: "#374151", position: "bottom-left" },
+    { id: "3", emoji: "", image_url: "", label: "Company Name", sublabel: "Slogan Here", bg: "#ffffff", bg_disabled: false, text_color: "#374151", position: "top-right" },
+    { id: "4", emoji: "🚛", image_url: "", label: "", sublabel: "", bg: "#ffffff", bg_disabled: false, text_color: "#374151", position: "bottom-right" },
   ],
 };
 
@@ -434,7 +435,7 @@ export default function HeroSettingsPage() {
                     {POSITION_LABELS[card.position]}
                   </span>
                   {/* Mini preview */}
-                  <div style={{ width: 46, height: 46, borderRadius: 10, background: card.bg, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid var(--border)", overflow: "hidden", flexShrink: 0 }}>
+                  <div style={{ width: 46, height: 46, borderRadius: 10, background: card.bg_disabled ? "transparent" : card.bg, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid var(--border)", overflow: "hidden", flexShrink: 0 }}>
                     {card.image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={card.image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -501,8 +502,23 @@ export default function HeroSettingsPage() {
                 {/* Card background + text color (always shown) */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
                   <div>
-                    <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Card Background</label>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                      <label style={{ fontSize: 11, color: "var(--text-muted)" }}>Card Background</label>
+                      <button
+                        onClick={() => setCard(card.id, "bg_disabled", !card.bg_disabled)}
+                        style={{
+                          fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20, cursor: "pointer", border: "1px solid",
+                          borderColor: card.bg_disabled ? "var(--text-muted)" : "var(--purple)",
+                          background: card.bg_disabled ? "var(--bg-primary)" : "var(--purple-light)",
+                          color: card.bg_disabled ? "var(--text-muted)" : "var(--purple)",
+                          transition: "all 0.15s",
+                        }}
+                        title={card.bg_disabled ? "Background disabled — click to enable" : "Click to disable background"}
+                      >
+                        {card.bg_disabled ? "Disabled" : "Enabled"}
+                      </button>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", opacity: card.bg_disabled ? 0.35 : 1, pointerEvents: card.bg_disabled ? "none" : "auto" }}>
                       <input type="color" value={card.bg} onChange={(e) => setCard(card.id, "bg", e.target.value)} style={{ width: 32, height: 30, border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", padding: 2, flexShrink: 0 }} />
                       <input type="text" value={card.bg} onChange={(e) => setCard(card.id, "bg", e.target.value)} style={{ ...inputStyle, flex: 1 }} />
                     </div>
