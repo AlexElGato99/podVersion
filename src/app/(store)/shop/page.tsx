@@ -4,8 +4,12 @@ import { getProducts } from "@/lib/printful";
 import ProductCard from "@/components/ui/ProductCard";
 
 export const metadata = {
-  title: "Shop",
-  description: "Browse our full catalog of premium print-on-demand products.",
+  title: "Shop Custom Graphic Tees, Hoodies & Gifts",
+  description: "Browse PrintDrop's full catalog of custom print-on-demand products — graphic tees, hoodies, mugs, posters, stickers & more. Free shipping on orders $50+.",
+  openGraph: {
+    title: "Shop Custom Graphic Tees, Hoodies & Gifts | PrintDrop",
+    description: "Browse PrintDrop's full catalog of custom print-on-demand products — graphic tees, hoodies, mugs, posters, stickers & more. Free shipping on orders $50+.",
+  },
 };
 
 const sortOptions = [

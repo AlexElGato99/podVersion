@@ -11,8 +11,12 @@ import {
 } from "lucide-react";
 
 export const metadata = {
-  title: "About Us",
-  description: "Learn about PrintDrop and our mission.",
+  title: "About PrintDrop — Custom Print-on-Demand Apparel & Gifts",
+  description: "Learn about PrintDrop — your destination for unique custom print-on-demand apparel, gifts, and accessories. Quality designs shipped worldwide via Printful.",
+  openGraph: {
+    title: "About PrintDrop — Custom Print-on-Demand Apparel & Gifts",
+    description: "Learn about PrintDrop — your destination for unique custom print-on-demand apparel, gifts, and accessories. Quality designs shipped worldwide via Printful.",
+  },
 };
 
 const values = [

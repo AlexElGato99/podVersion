@@ -16,6 +16,8 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata = {
   title: "My Account",
+  description: "Manage your PrintDrop account — view orders, track shipments, and update your profile.",
+  robots: { index: false },
 };
 
 const menuItems = [

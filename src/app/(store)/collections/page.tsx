@@ -2,8 +2,12 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 export const metadata = {
-  title: "Collections",
-  description: "Browse our curated product collections.",
+  title: "Curated Collections — Graphic Tees, Gifts & More",
+  description: "Explore PrintDrop's curated collections of custom print-on-demand apparel and gifts. Find trending designs for every style and occasion. Shop now.",
+  openGraph: {
+    title: "Curated Collections — Graphic Tees, Gifts & More | PrintDrop",
+    description: "Explore PrintDrop's curated collections of custom print-on-demand apparel and gifts. Find trending designs for every style and occasion.",
+  },
 };
 
 const collections = [

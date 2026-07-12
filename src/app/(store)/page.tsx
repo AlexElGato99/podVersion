@@ -5,8 +5,6 @@ import {
   ShieldCheck,
   RotateCcw,
   Zap,
-  Heart,
-  Package,
 } from "lucide-react";
 import { getProducts } from "@/lib/printful";
 import ProductCard from "@/components/ui/ProductCard";
@@ -41,6 +39,7 @@ interface StoreCategory {
   id: string;
   name: string;
   icon: string;
+  icon_url?: string;
   href: string;
   color: string;
 }
@@ -84,8 +83,8 @@ const HERO_DEFAULTS: HeroSettings = {
   cta_primary_link: "/shop",
   cta_secondary_text: "View Collections",
   cta_secondary_link: "/collections",
-  bg_from: "#d4f1f9",
-  bg_to: "#bde8f7",
+  bg_from: "#fdf1e7",
+  bg_to: "#fce8d5",
   main_image_url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&auto=format&fit=crop&q=80",
   floating_cards: [
     { id: "1", emoji: "🐼", image_url: "", label: "", sublabel: "", bg: "#0d3d5f", text_color: "#ffffff", position: "top-left" },
@@ -134,9 +133,9 @@ const CARD_ANIM: Record<FloatingCard["position"], { anim: string; style: React.C
 
 /* Position styles for each floating card slot — cards sit BEHIND the main image (zIndex: 5) */
 const CARD_POS: Record<FloatingCard["position"], React.CSSProperties> = {
-  "top-left":     { position: "absolute", left: "2%",  top: "6%",    zIndex: 5 },
+  "top-left":     { position: "absolute", left: "2%",  top: "20%",   zIndex: 5 },
   "bottom-left":  { position: "absolute", left: "2%",  bottom: "6%", zIndex: 5 },
-  "top-right":    { position: "absolute", right: "2%", top: "6%",    zIndex: 5 },
+  "top-right":    { position: "absolute", right: "2%", top: "20%",   zIndex: 5 },
   "bottom-right": { position: "absolute", right: "2%", bottom: "6%", zIndex: 5 },
 };
 
@@ -176,69 +175,70 @@ export default async function HomePage() {
   const [products, hero, categoryData] = await Promise.all([getFeaturedProducts(), getHeroSettings(), getCategorySettings()]);
 
   return (
-    <div className="overflow-x-hidden">
-      {/* Hero */}
+    <div className="overflow-x-hidden bg-white">
+      {/* ── Hero — Etsy style ── */}
       <section
-        className="relative overflow-hidden pt-20"
-        style={{
-          background: `linear-gradient(135deg, ${hero.bg_from} 0%, ${hero.bg_to} 100%)`,
-        }}
+        className="relative min-h-screen pt-[100px] flex flex-col"
+        style={{ background: `linear-gradient(160deg, ${hero.bg_from} 0%, ${hero.bg_to} 100%)` }}
       >
-        {/* Inject hero bg color as a CSS variable on :root so Navbar can read it */}
-        <style dangerouslySetInnerHTML={{ __html: `:root { --hero-bg-from: ${hero.bg_from}; --hero-bg-to: ${hero.bg_to}; }` }} />
-        {/* Blue circle blob behind image — animated pulse */}
-        <div
-          className="hero-blob pointer-events-none absolute right-[8%] top-[10%] h-[520px] w-[520px] rounded-full"
-          style={{ background: "radial-gradient(circle, #2d9ee0 0%, #1a7ec8 60%, transparent 100%)", opacity: 0.85 }}
-        />
+        <div className="flex-1 flex flex-col mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8">
+          <div className="flex-1 grid gap-8 py-12 lg:grid-cols-2 lg:gap-16 lg:py-0 w-full">
 
-        {/* Animated blue dot decorators */}
-        <div className="hero-dot pointer-events-none absolute left-[8%] top-[40%] h-5 w-5 rounded-full bg-blue-500" style={{ animationDelay: "0s" }} />
-        <div className="hero-dot pointer-events-none absolute left-[35%] bottom-[22%] h-4 w-4 rounded-full bg-blue-500" style={{ animationDelay: "1s" }} />
-        <div className="hero-dot pointer-events-none absolute left-[44%] top-[38%] h-3 w-3 rounded-full bg-blue-400" style={{ animationDelay: "0.5s" }} />
-
-        {/* Animated triangle decorators */}
-        <div
-          className="hero-tri pointer-events-none absolute"
-          style={{ left: "39%", top: "35%", width: 0, height: 0, borderLeft: "18px solid transparent", borderRight: "18px solid transparent", borderBottom: "32px solid #5b4fe9", animationDelay: "0.3s" }}
-        />
-        <div
-          className="hero-tri pointer-events-none absolute"
-          style={{ left: "12%", bottom: "18%", width: 0, height: 0, borderLeft: "14px solid transparent", borderRight: "14px solid transparent", borderBottom: "26px solid #5b4fe9", animationDelay: "1.2s" }}
-        />
-
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid min-h-[calc(100vh-80px)] items-stretch gap-0 lg:grid-cols-2">
-
-            {/* Left: Text */}
-            <div className="relative z-10 flex flex-col justify-center py-20 text-center lg:text-left">
-              <h1 className="text-5xl font-extrabold leading-tight tracking-tight text-zinc-900 sm:text-6xl lg:text-[64px]">
+            {/* Left: copy */}
+            <div className="flex flex-col gap-6 justify-center">
+              <h1 className="text-4xl font-extrabold leading-[1.1] tracking-tight text-zinc-900 sm:text-5xl lg:text-[52px]">
                 {hero.headline}
               </h1>
-              <p className="mx-auto mt-6 max-w-sm text-base text-zinc-600 lg:mx-0">
+
+              <p className="max-w-md text-base leading-relaxed text-zinc-600">
                 {hero.subtitle}
               </p>
-              <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row lg:justify-start">
+
+              {/* CTA buttons */}
+              <div className="flex flex-wrap items-center gap-3 pt-1">
                 <Link
                   href={hero.cta_primary_link}
-                  className="inline-flex items-center gap-3 rounded-full bg-[#5b4fe9] px-9 py-4 text-base font-semibold text-white shadow-lg transition-all hover:bg-[#4a3fd8] hover:shadow-xl active:scale-95"
+                  className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-7 py-3.5 text-sm font-semibold text-white transition-all hover:bg-zinc-700 active:scale-95"
                 >
                   {hero.cta_primary_text}
-                  <ArrowRight className="h-5 w-5" />
+                  <ArrowRight className="h-4 w-4" />
                 </Link>
                 {hero.cta_secondary_text && (
                   <Link
                     href={hero.cta_secondary_link || "/collections"}
-                    className="inline-flex items-center gap-2 rounded-full border-2 border-zinc-700/30 bg-white/60 px-8 py-4 text-base font-semibold text-zinc-800 backdrop-blur-sm transition-all hover:bg-white/90 hover:border-zinc-700/50 active:scale-95"
+                    className="inline-flex items-center gap-2 rounded-full border-2 border-zinc-900 bg-transparent px-7 py-3.5 text-sm font-semibold text-zinc-900 transition-all hover:bg-zinc-900 hover:text-white active:scale-95"
                   >
                     {hero.cta_secondary_text}
                   </Link>
                 )}
               </div>
+
+              {/* Trust badges */}
+              <div className="flex flex-wrap items-center gap-5 pt-2 border-t border-amber-200/60">
+                <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+                  <Truck className="h-3.5 w-3.5 text-zinc-400" />
+                  Free shipping on orders $50+
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+                  <ShieldCheck className="h-3.5 w-3.5 text-zinc-400" />
+                  Secure checkout
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+                  <RotateCcw className="h-3.5 w-3.5 text-zinc-400" />
+                  30-day returns
+                </div>
+              </div>
+
+              {/* Social-proof */}
+              <div className="inline-flex w-fit items-center gap-2 text-xs font-semibold text-amber-800">
+                <span className="flex text-amber-400">★★★★★</span>
+                Loved by thousands of creators
+              </div>
             </div>
 
-            {/* Right: Product image + animated floating design cards */}
-            <div className="relative flex self-stretch items-end justify-center">
+            {/* Right: product image — anchored to bottom */}
+            <div className="relative flex flex-col items-center justify-end">
+              {/* Floating product cards (admin-controlled) */}
               {hero.floating_cards.map((card) => {
                 const pos = card.position;
                 const { anim, style: animStyle } = CARD_ANIM[pos] ?? CARD_ANIM["top-left"];
@@ -248,13 +248,13 @@ export default async function HomePage() {
                 return (
                   <div
                     key={card.id}
-                    className={`${anim} overflow-hidden rounded-2xl shadow-xl`}
+                    className={`${anim} overflow-hidden rounded-2xl shadow-lg`}
                     style={{
                       ...posStyle,
                       background: card.bg_disabled ? "transparent" : card.bg,
-                      boxShadow: card.bg_disabled ? "none" : undefined,
+                      boxShadow: card.bg_disabled ? "none" : "0 8px 24px rgba(0,0,0,0.10)",
                       color: card.text_color,
-                      ...(isLabel ? { width: 130, padding: "12px 16px" } : { width: 110, height: 110 }),
+                      ...(isLabel ? { width: 148, padding: "12px 16px" } : { width: 116, height: 116 }),
                       ...animStyle,
                     }}
                   >
@@ -262,12 +262,12 @@ export default async function HomePage() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={card.image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : card.emoji ? (
-                      <div className="flex h-full items-center justify-center" style={{ fontSize: 36 }}>
+                      <div className="flex h-full items-center justify-center" style={{ fontSize: 30 }}>
                         {card.emoji}
                       </div>
                     ) : (
-                      <div>
-                        {card.label && <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", margin: 0 }}>{card.label}</p>}
+                      <div className="p-1">
+                        {card.label && <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", margin: 0 }}>{card.label}</p>}
                         {card.sublabel && <p style={{ fontSize: 9, opacity: 0.6, margin: "2px 0 0 0" }}>{card.sublabel}</p>}
                       </div>
                     )}
@@ -275,39 +275,46 @@ export default async function HomePage() {
                 );
               })}
 
-              {/* Main product image — anchored to bottom, z-index above the cards */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={hero.main_image_url}
-                alt="Custom T-Shirts"
-                className="relative w-auto object-cover object-bottom"
-                style={{ zIndex: 10, height: "90%", maxHeight: 600, alignSelf: "flex-end", filter: "drop-shadow(0 20px 40px rgba(0,0,0,0.2))" }}
-              />
+              {/* Main image — anchored to bottom, no background */}
+              <div className="relative z-10" style={{ maxWidth: 560 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={hero.main_image_url}
+                  alt="Featured product"
+                  className="w-full object-contain object-bottom"
+                  style={{ maxHeight: "calc(100vh - 100px)", display: "block" }}
+                />
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Categories */}
-      <section className="py-24">
+      <section className="py-12 bg-white border-b border-zinc-100">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="section-title">{categoryData.section_title}</h2>
-            <p className="mt-4 text-zinc-500">{categoryData.section_description}</p>
+          <div className="flex items-center justify-between mb-7">
+            <h2 className="text-xl font-bold text-zinc-900">{categoryData.section_title}</h2>
+            <Link href="/shop" className="text-sm font-medium text-brand-600 hover:text-brand-700 hover:underline transition-colors">
+              Browse all
+            </Link>
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-8">
             {categoryData.categories.map((cat) => (
               <Link
                 key={cat.id}
                 href={cat.href}
-                className="group card flex flex-col items-center gap-3 p-6 transition-all hover:border-zinc-300 hover:-translate-y-1"
+                className="group flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-zinc-50 transition-colors"
               >
                 <div
-                  className={`h-12 w-12 rounded-xl bg-gradient-to-br ${cat.color} flex items-center justify-center text-2xl shadow-lg`}
+                  className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${cat.color} flex items-center justify-center text-2xl shadow-md overflow-hidden`}
                 >
-                  {cat.icon}
+                  {cat.icon_url
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={cat.icon_url} alt={cat.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : cat.icon}
                 </div>
-                <span className="text-sm font-medium text-zinc-600 group-hover:text-zinc-900 transition-colors">
+                <span className="text-xs font-medium text-zinc-600 group-hover:text-zinc-900 text-center transition-colors leading-tight">
                   {cat.name}
                 </span>
               </Link>
@@ -317,21 +324,20 @@ export default async function HomePage() {
       </section>
 
       {/* Featured Products */}
-      <section className="py-24 bg-zinc-50/50">
+      <section className="py-14 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-12">
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="section-title">Featured Products</h2>
-              <p className="mt-2 text-zinc-500">Hand-picked favorites from our catalog</p>
+              <h2 className="text-xl font-bold text-zinc-900">Featured Products</h2>
+              <p className="mt-1 text-sm text-zinc-500">Handpicked favorites from our catalog</p>
             </div>
-            <Link href="/shop" className="btn-secondary hidden sm:flex">
-              View All
-              <ArrowRight className="h-4 w-4" />
+            <Link href="/shop" className="text-sm font-medium text-brand-600 hover:text-brand-700 hover:underline hidden sm:block">
+              See all
             </Link>
           </div>
 
           {products.length > 0 ? (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
               {products.map((product) => (
                 <ProductCard
                   key={product.id}
@@ -339,50 +345,39 @@ export default async function HomePage() {
                   name={product.name}
                   price={0}
                   imageUrl={product.thumbnail_url}
-                  badge={product.id % 3 === 0 ? "New" : undefined}
+                  freeShipping={product.id % 2 === 0}
+                  badge={product.id % 4 === 0 ? "Bestseller" : undefined}
                 />
               ))}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="card aspect-square animate-pulse bg-zinc-100/40"
-                />
+                <div key={i} className="aspect-square rounded-2xl animate-pulse bg-zinc-100" />
               ))}
             </div>
           )}
 
-          <div className="mt-10 text-center sm:hidden">
-            <Link href="/shop" className="btn-secondary">
-              View All Products
-              <ArrowRight className="h-4 w-4" />
+          <div className="mt-8 text-center sm:hidden">
+            <Link href="/shop" className="text-sm font-semibold text-brand-600 hover:underline">
+              See all products →
             </Link>
           </div>
         </div>
       </section>
 
       {/* Features / Trust */}
-      <section className="py-24">
+      <section className="py-12 bg-zinc-50 border-t border-zinc-100">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="section-title">Why PrintDrop?</h2>
-          </div>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
             {features.map(({ icon: Icon, title, description }) => (
-              <div
-                key={title}
-                className="card p-6 flex flex-col gap-4 transition-all hover:border-zinc-300"
-              >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 border border-brand-200">
-                  <Icon className="h-6 w-6 text-brand-600" />
+              <div key={title} className="flex flex-col items-center text-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-100">
+                  <Icon className="h-5 w-5 text-brand-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-zinc-900 mb-1">{title}</h3>
-                  <p className="text-sm text-zinc-500 leading-relaxed">
-                    {description}
-                  </p>
+                  <p className="text-sm font-semibold text-zinc-800">{title}</p>
+                  <p className="mt-0.5 text-xs text-zinc-500 leading-relaxed">{description}</p>
                 </div>
               </div>
             ))}
@@ -391,24 +386,20 @@ export default async function HomePage() {
       </section>
 
       {/* CTA Banner */}
-      <section className="py-24">
+      <section className="py-16 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-700 via-brand-600 to-accent-600 p-12 text-center shadow-2xl shadow-brand-900/50">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.08),transparent)]" />
+          <div className="relative overflow-hidden rounded-3xl bg-zinc-900 px-8 py-14 text-center">
+            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 20% 50%, #ea580c 0%, transparent 60%), radial-gradient(circle at 80% 50%, #0d9488 0%, transparent 60%)" }} />
             <div className="relative">
-              <Heart className="mx-auto mb-4 h-10 w-10 text-white/80" />
-              <h2 className="text-3xl font-bold text-white sm:text-4xl">
-                Start Creating Today
-              </h2>
-              <p className="mt-4 max-w-xl mx-auto text-brand-100">
-                Join thousands of creators and find your next favorite piece. New
-                designs added every week.
+              <h2 className="text-3xl font-bold text-white sm:text-4xl">Find something you&apos;ll love</h2>
+              <p className="mt-3 text-zinc-400 max-w-md mx-auto text-sm">
+                Thousands of unique designs, made just for you. New products added every week.
               </p>
               <Link
                 href="/shop"
-                className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-8 py-3.5 text-sm font-semibold text-brand-700 shadow-lg transition-all hover:bg-brand-50 hover:shadow-xl active:scale-95"
+                className="mt-7 inline-flex items-center gap-2 rounded-full bg-brand-600 px-8 py-3 text-sm font-semibold text-white hover:bg-brand-500 transition-colors"
               >
-                Shop the Collection
+                Start shopping
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>

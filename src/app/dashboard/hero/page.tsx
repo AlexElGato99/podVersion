@@ -61,8 +61,8 @@ const DEFAULTS: HeroSettings = {
   cta_primary_link: "/shop",
   cta_secondary_text: "View Collections",
   cta_secondary_link: "/collections",
-  bg_from: "#d4f1f9",
-  bg_to: "#bde8f7",
+  bg_from: "#fdf1e7",
+  bg_to: "#fce8d5",
   main_image_url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&auto=format&fit=crop&q=80",
   floating_cards: [
     { id: "1", emoji: "🐼", image_url: "", label: "", sublabel: "", bg: "#0d3d5f", bg_disabled: false, text_color: "#ffffff", position: "top-left" },
