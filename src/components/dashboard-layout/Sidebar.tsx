@@ -30,6 +30,7 @@ import {
   Megaphone,
   Map,
   PanelLeft,
+  LayoutGrid,
 } from "lucide-react";
 import { Logo } from "@/components/ui/DashboardLogo";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,7 @@ const navSections: NavSection[] = [
     title: "Frontend",
     items: [
       { label: "Hero Section", href: "/dashboard/hero", icon: Image },
+      { label: "Categories", href: "/dashboard/categories", icon: LayoutGrid },
       { label: "Quick Statistics", href: "/dashboard/quick-stats", icon: Sliders },
       { label: "Sliders", href: "/dashboard/sliders", icon: Layers },
       { label: "Features", href: "/dashboard/features", icon: Star },
