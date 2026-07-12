@@ -37,6 +37,46 @@ interface HeroSettings {
   floating_cards: FloatingCard[];
 }
 
+interface StoreCategory {
+  id: string;
+  name: string;
+  icon: string;
+  href: string;
+  color: string;
+}
+
+interface CategorySettings {
+  section_title: string;
+  section_description: string;
+  categories: StoreCategory[];
+}
+
+const CATEGORY_DEFAULTS: CategorySettings = {
+  section_title: "Shop by Category",
+  section_description: "Find exactly what you're looking for",
+  categories: [
+    { id: "1", name: "T-Shirts",    icon: "👕", href: "/shop?category=t-shirts",    color: "from-violet-600 to-purple-600" },
+    { id: "2", name: "Hoodies",     icon: "🧥", href: "/shop?category=hoodies",      color: "from-blue-600 to-cyan-600" },
+    { id: "3", name: "Mugs",        icon: "☕", href: "/shop?category=mugs",         color: "from-amber-600 to-orange-600" },
+    { id: "4", name: "Posters",     icon: "🖼️", href: "/shop?category=posters",     color: "from-pink-600 to-rose-600" },
+    { id: "5", name: "Hats",        icon: "🎩", href: "/shop?category=hats",         color: "from-green-600 to-emerald-600" },
+    { id: "6", name: "Accessories", icon: "💎", href: "/shop?category=accessories",  color: "from-indigo-600 to-violet-600" },
+  ],
+};
+
+async function getCategorySettings(): Promise<CategorySettings> {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("category_settings").select("*").eq("id", 1).single();
+    if (data) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id: _id, updated_at: _u, ...rest } = data;
+      return { ...CATEGORY_DEFAULTS, ...rest };
+    }
+  } catch { /* fall through */ }
+  return CATEGORY_DEFAULTS;
+}
+
 const HERO_DEFAULTS: HeroSettings = {
   headline: "The leader in quality custom T-Shirts",
   subtitle: "Turn your ideas into premium products that leave a lasting impression",
@@ -132,17 +172,8 @@ const features = [
   },
 ];
 
-const categories = [
-  { name: "T-Shirts", icon: "👕", href: "/shop?category=t-shirts", color: "from-violet-600 to-purple-600" },
-  { name: "Hoodies", icon: "🧥", href: "/shop?category=hoodies", color: "from-blue-600 to-cyan-600" },
-  { name: "Mugs", icon: "☕", href: "/shop?category=mugs", color: "from-amber-600 to-orange-600" },
-  { name: "Posters", icon: "🖼️", href: "/shop?category=posters", color: "from-pink-600 to-rose-600" },
-  { name: "Hats", icon: "🎩", href: "/shop?category=hats", color: "from-green-600 to-emerald-600" },
-  { name: "Accessories", icon: "💎", href: "/shop?category=accessories", color: "from-indigo-600 to-violet-600" },
-];
-
 export default async function HomePage() {
-  const [products, hero] = await Promise.all([getFeaturedProducts(), getHeroSettings()]);
+  const [products, hero, categoryData] = await Promise.all([getFeaturedProducts(), getHeroSettings(), getCategorySettings()]);
 
   return (
     <div className="overflow-x-hidden">
@@ -261,15 +292,13 @@ export default async function HomePage() {
       <section className="py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="section-title">Shop by Category</h2>
-            <p className="mt-4 text-zinc-500">
-              Find exactly what you&apos;re looking for
-            </p>
+            <h2 className="section-title">{categoryData.section_title}</h2>
+            <p className="mt-4 text-zinc-500">{categoryData.section_description}</p>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-            {categories.map((cat) => (
+            {categoryData.categories.map((cat) => (
               <Link
-                key={cat.name}
+                key={cat.id}
                 href={cat.href}
                 className="group card flex flex-col items-center gap-3 p-6 transition-all hover:border-zinc-300 hover:-translate-y-1"
               >
