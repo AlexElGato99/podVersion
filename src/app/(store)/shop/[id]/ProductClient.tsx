@@ -46,27 +46,22 @@ export default function ProductClient({ product }: ProductClientProps) {
   const { sync_product, sync_variants } = product;
   const { addItem } = useCart();
 
-  // Map: color name → its own design mockup (only if Printful generated one for that color)
-  // Also find the white/lightest mockup to use as base for tinting other colors
-  const { colorImageMap, whiteMockup } = useMemo(() => {
-    const map = new Map<string, string>();
-    let white: string | null = null;
-
+  // Map: color → { shirtImage, designImage, mockupImage }
+  // shirtImage: catalog shirt in the right color (always available for all colors)
+  // designImage: front_large print file (the artwork, same per product)
+  // mockupImage: Printful-generated mockup with design (only available for some colors)
+  const colorDataMap = useMemo(() => {
+    const map = new Map<string, { shirtImage: string | null; designImage: string | null; mockupImage: string | null }>();
     for (const v of sync_variants) {
       if (!v.color) continue;
-      const preview = v.files?.find((f) => f.type === "preview" && f.preview_url);
-      if (preview?.preview_url) {
-        if (!map.has(v.color)) map.set(v.color, preview.preview_url);
-        // Prefer White or lightest color as the tint base
-        if (!white && (v.color.toLowerCase() === "white" || v.color.toLowerCase().includes("white"))) {
-          white = preview.preview_url;
-        }
+      if (!map.has(v.color)) {
+        const mockup = v.files?.find((f) => f.type === "preview" && f.preview_url)?.preview_url ?? null;
+        const design = v.files?.find((f) => f.type === "front_large" && f.preview_url)?.preview_url ?? null;
+        const shirt  = v.product?.image ?? null;
+        map.set(v.color, { shirtImage: shirt, designImage: design, mockupImage: mockup });
       }
     }
-    // Fallback: use any available mockup as tint base if no white found
-    if (!white && map.size > 0) white = map.values().next().value ?? null;
-
-    return { colorImageMap: map, whiteMockup: white };
+    return map;
   }, [sync_variants]);
 
   // Build a map of color name → { hex, hex2 } from Printful catalog data
@@ -139,7 +134,7 @@ export default function ProductClient({ product }: ProductClientProps) {
   }, [sync_variants, sync_product.thumbnail_url]);
 
   const [selectedImage, setSelectedImage] = useState<string>(
-    colorImageMap.get(colors[0] ?? "") ?? whiteMockup ?? previewImages[0] ?? sync_product.thumbnail_url ?? ""
+    sync_product.thumbnail_url ?? ""
   );
   const [quantity, setQuantity] = useState(1);
   const [wishlist, setWishlist] = useState(false);
@@ -177,25 +172,53 @@ export default function ProductClient({ product }: ProductClientProps) {
           {/* Image gallery */}
           <div className="flex flex-col gap-4">
             <div className="relative aspect-square overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-50" style={{ isolation: "isolate" }}>
-              <Image
-                src={selectedImage || "/placeholder-product.jpg"}
-                alt={sync_product.name}
-                fill
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                className="object-cover transition-opacity duration-300"
-                priority
-                unoptimized
-              />
-              {/* Color tint overlay — multiply blend over the white mockup tints the shirt
-                  to the selected color while keeping the design artwork fully visible */}
-              {hasColors && selectedColor && !colorImageMap.has(selectedColor) && (() => {
-                const hex = colorMap.get(selectedColor)?.hex;
-                if (!hex) return null;
+              {(() => {
+                const cd = colorDataMap.get(selectedColor);
+                // If Printful generated a full mockup for this color, show it directly
+                if (cd?.mockupImage) {
+                  return (
+                    <Image
+                      src={cd.mockupImage}
+                      alt={`${sync_product.name} in ${selectedColor}`}
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 50vw"
+                      className="object-cover transition-opacity duration-300"
+                      priority
+                      unoptimized
+                    />
+                  );
+                }
+                // Otherwise: layer the catalog shirt (correct color) + design artwork on top
+                const shirtSrc = (cd?.shirtImage ?? selectedImage) || "/placeholder-product.jpg";
+                const designSrc = cd?.designImage ?? null;
                 return (
-                  <div
-                    className="absolute inset-0 pointer-events-none transition-colors duration-300"
-                    style={{ backgroundColor: hex, mixBlendMode: "multiply", opacity: 1 }}
-                  />
+                  <>
+                    {/* Shirt in the selected color */}
+                    <Image
+                      src={shirtSrc}
+                      alt={`${sync_product.name} in ${selectedColor}`}
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 50vw"
+                      className="object-cover transition-opacity duration-300"
+                      priority
+                      unoptimized
+                    />
+                    {/* Design artwork overlaid on the shirt chest area */}
+                    {designSrc && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="relative" style={{ width: "42%", aspectRatio: "1/1", marginTop: "-8%" }}>
+                          <Image
+                            src={designSrc}
+                            alt="Design"
+                            fill
+                            sizes="200px"
+                            className="object-contain"
+                            unoptimized
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
                 );
               })()}
               <button
@@ -284,16 +307,7 @@ export default function ProductClient({ product }: ProductClientProps) {
                       <button
                         key={color}
                         title={color}
-                        onClick={() => {
-                          setSelectedColor(color);
-                          if (colorImageMap.has(color)) {
-                            // This color has its own design mockup — show it directly, no tint needed
-                            setSelectedImage(colorImageMap.get(color)!);
-                          } else if (whiteMockup) {
-                            // Use white shirt mockup as base — CSS multiply tint will apply the color
-                            setSelectedImage(whiteMockup);
-                          }
-                        }}
+                        onClick={() => setSelectedColor(color)}
                         className={cn(
                           "relative h-9 w-9 rounded-full transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2",
                           isSelected ? "ring-2 ring-offset-2 ring-brand-600 scale-110" : "hover:scale-110 ring-1 ring-zinc-300"
