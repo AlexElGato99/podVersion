@@ -171,56 +171,31 @@ export default function ProductClient({ product }: ProductClientProps) {
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 xl:gap-16">
           {/* Image gallery */}
           <div className="flex flex-col gap-4">
-            <div className="relative aspect-square overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-50" style={{ isolation: "isolate" }}>
+            <div className="relative aspect-square overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-50">
               {(() => {
                 const cd = colorDataMap.get(selectedColor);
-                // If Printful generated a full mockup for this color, show it directly
-                if (cd?.mockupImage) {
-                  return (
-                    <Image
-                      src={cd.mockupImage}
-                      alt={`${sync_product.name} in ${selectedColor}`}
-                      fill
-                      sizes="(max-width: 1024px) 100vw, 50vw"
-                      className="object-cover transition-opacity duration-300"
-                      priority
-                      unoptimized
-                    />
-                  );
-                }
-                // Otherwise: layer the catalog shirt (correct color) + design artwork on top
-                const shirtSrc = (cd?.shirtImage ?? selectedImage) || "/placeholder-product.jpg";
-                const designSrc = cd?.designImage ?? null;
+                const src = (cd?.mockupImage ?? selectedImage) || "/placeholder-product.jpg";
                 return (
-                  <>
-                    {/* Shirt in the selected color */}
-                    <Image
-                      src={shirtSrc}
-                      alt={`${sync_product.name} in ${selectedColor}`}
-                      fill
-                      sizes="(max-width: 1024px) 100vw, 50vw"
-                      className="object-cover transition-opacity duration-300"
-                      priority
-                      unoptimized
-                    />
-                    {/* Design artwork overlaid on the shirt chest area */}
-                    {designSrc && (
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className="relative" style={{ width: "42%", aspectRatio: "1/1", marginTop: "-8%" }}>
-                          <Image
-                            src={designSrc}
-                            alt="Design"
-                            fill
-                            sizes="200px"
-                            className="object-contain"
-                            unoptimized
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </>
+                  <Image
+                    src={src}
+                    alt={`${sync_product.name} in ${selectedColor}`}
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    className="object-cover transition-opacity duration-300"
+                    priority
+                    unoptimized
+                  />
                 );
               })()}
+              {/* Badge when selected color has no generated mockup yet */}
+              {hasColors && selectedColor && !colorDataMap.get(selectedColor)?.mockupImage && (
+                <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-white/90 backdrop-blur-sm border border-zinc-200 rounded-full px-3 py-1.5 shadow-sm">
+                  {colorMap.get(selectedColor)?.hex && (
+                    <span className="h-3.5 w-3.5 rounded-full border border-zinc-300 shrink-0" style={{ background: colorMap.get(selectedColor)!.hex }} />
+                  )}
+                  <span className="text-xs font-medium text-zinc-700">{selectedColor}</span>
+                </div>
+              )}
               <button
                 onClick={() => setWishlist(!wishlist)}
                 aria-label={wishlist ? "Remove from wishlist" : "Add to wishlist"}
@@ -307,7 +282,11 @@ export default function ProductClient({ product }: ProductClientProps) {
                       <button
                         key={color}
                         title={color}
-                        onClick={() => setSelectedColor(color)}
+                        onClick={() => {
+                          setSelectedColor(color);
+                          const mockup = colorDataMap.get(color)?.mockupImage;
+                          if (mockup) setSelectedImage(mockup);
+                        }}
                         className={cn(
                           "relative h-9 w-9 rounded-full transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2",
                           isSelected ? "ring-2 ring-offset-2 ring-brand-600 scale-110" : "hover:scale-110 ring-1 ring-zinc-300"
