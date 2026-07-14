@@ -122,20 +122,24 @@ export default function ProductClient({ product }: ProductClientProps) {
     }) ?? sync_variants[0];
   }, [sync_variants, selectedColor, selectedSize, hasColors, hasSizes]);
 
-  const previewImages = useMemo(() => {
-    const urls = Array.from(new Set(
-      sync_variants.flatMap((v) => v.files ?? [])
-        .filter((f) => f.type === "preview")
-        .map((f) => f.preview_url)
-        .filter(Boolean)
-    )).slice(0, 8) as string[];
-    if (urls.length === 0 && sync_product.thumbnail_url) urls.push(sync_product.thumbnail_url);
-    return urls;
-  }, [sync_variants, sync_product.thumbnail_url]);
+  // Build per-color mockup thumbnails for the gallery strip
+  // Only colors that have a Printful-generated mockup image appear here
+  const colorThumbnails = useMemo(() => {
+    const seen = new Set<string>();
+    const result: { color: string; image: string }[] = [];
+    for (const v of sync_variants) {
+      if (!v.color || seen.has(v.color)) continue;
+      seen.add(v.color);
+      const cd = colorDataMap.get(v.color);
+      if (cd?.mockupImage) result.push({ color: v.color, image: cd.mockupImage });
+    }
+    return result;
+  }, [sync_variants, colorDataMap]);
 
-  const [selectedImage, setSelectedImage] = useState<string>(
-    sync_product.thumbnail_url ?? ""
-  );
+  const [selectedImage, setSelectedImage] = useState<string>(() => {
+    const first = colors[0] ? colorDataMap.get(colors[0]) : undefined;
+    return (first?.mockupImage ?? first?.shirtImage ?? sync_product.thumbnail_url) || "";
+  });
   const [quantity, setQuantity] = useState(1);
   const [wishlist, setWishlist] = useState(false);
   const [added, setAdded] = useState(false);
@@ -174,7 +178,7 @@ export default function ProductClient({ product }: ProductClientProps) {
             <div className="relative aspect-square overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-50">
               {(() => {
                 const cd = colorDataMap.get(selectedColor);
-                const src = (cd?.mockupImage ?? selectedImage) || "/placeholder-product.jpg";
+                const src = (cd?.mockupImage ?? cd?.shirtImage ?? selectedImage) || "/placeholder-product.jpg";
                 return (
                   <Image
                     src={src}
@@ -209,20 +213,21 @@ export default function ProductClient({ product }: ProductClientProps) {
                 <Heart className={cn("h-5 w-5", wishlist && "fill-red-500")} />
               </button>
             </div>
-            {previewImages.length > 1 && (
+            {colorThumbnails.length > 1 && (
               <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
-                {previewImages.map((img, i) => (
+                {colorThumbnails.map(({ color, image }) => (
                   <button
-                    key={i}
-                    onClick={() => setSelectedImage(img)}
+                    key={color}
+                    title={color}
+                    onClick={() => { setSelectedColor(color); setSelectedImage(image); }}
                     className={cn(
                       "relative aspect-square overflow-hidden rounded-xl border-2 transition-all duration-150",
-                      selectedImage === img
+                      selectedColor === color
                         ? "border-brand-600 shadow-sm"
                         : "border-zinc-200 hover:border-zinc-400"
                     )}
                   >
-                    <Image src={img} alt={`View ${i + 1}`} fill sizes="80px" className="object-cover" unoptimized />
+                    <Image src={image} alt={color} fill sizes="80px" className="object-cover" unoptimized />
                   </button>
                 ))}
               </div>
@@ -284,8 +289,10 @@ export default function ProductClient({ product }: ProductClientProps) {
                         title={color}
                         onClick={() => {
                           setSelectedColor(color);
-                          const mockup = colorDataMap.get(color)?.mockupImage;
-                          if (mockup) setSelectedImage(mockup);
+                          const cd = colorDataMap.get(color);
+                          // Use design mockup if available, otherwise catalog shirt in the right color
+                          const img = cd?.mockupImage ?? cd?.shirtImage;
+                          if (img) setSelectedImage(img);
                         }}
                         className={cn(
                           "relative h-9 w-9 rounded-full transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2",
