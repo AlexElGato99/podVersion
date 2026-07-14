@@ -81,7 +81,25 @@ export default function ShopClient({ products, categoryOptions = [] }: { product
     }
 
     if (category && category !== "All") {
-      list = list.filter((p) => inferCategory(p.name) === category);
+      const catLower = category.toLowerCase();
+      // Try matching against categoryOptions first (case-insensitive)
+      const matchedOption = categoryOptions.find(
+        (o) => o.toLowerCase() === catLower || o.toLowerCase().replace(/[^a-z0-9]+/g, "-") === catLower
+      );
+      if (matchedOption) {
+        // Match by inferred category OR product name keyword
+        list = list.filter(
+          (p) => inferCategory(p.name).toLowerCase() === matchedOption.toLowerCase()
+               || p.name.toLowerCase().includes(matchedOption.toLowerCase())
+        );
+      } else {
+        // Navbar slug fallback: match product name against the slug keywords
+        const keywords = catLower.split("-").filter((w) => w.length > 2);
+        list = list.filter((p) => {
+          const name = p.name.toLowerCase();
+          return keywords.some((kw) => name.includes(kw)) || inferCategory(p.name).toLowerCase() === catLower;
+        });
+      }
     }
 
     if (minPrice > 0 || maxPrice < 9999) {
@@ -173,18 +191,25 @@ export default function ShopClient({ products, categoryOptions = [] }: { product
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">Category</label>
             <div className="space-y-1">
-              {categories.map((cat) => (
+              {categories.map((cat) => {
+                const isActive = cat === "All"
+                  ? !category
+                  : category?.toLowerCase() === cat.toLowerCase()
+                    || category?.toLowerCase() === cat.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+                return (
                 <button
                   key={cat}
                   onClick={() => setParam("category", cat === "All" ? "" : cat)}
                   className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                    (category || "All") === cat
+                    isActive
                       ? "bg-brand-50 text-brand-700 font-medium"
                       : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
                   }`}
                 >
                   {cat}
                 </button>
+                );
+              })}
               ))}
             </div>
           </div>
