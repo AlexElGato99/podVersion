@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { Heart, Star, ShoppingCart } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, productSlug } from "@/lib/utils";
 
 interface ProductCardProps {
   id: number;
@@ -36,7 +36,7 @@ export default function ProductCard({
 
   return (
     <Link
-      href={`/shop/${id}`}
+      href={`/shop/${productSlug(name, id)}`}
       className={cn("group relative flex flex-col bg-white", className)}
     >
       {/* Image */}

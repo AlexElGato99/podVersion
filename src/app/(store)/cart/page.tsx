@@ -74,6 +74,7 @@ export default function CartPage() {
                     fill
                     sizes="96px"
                     className="object-cover"
+                    unoptimized
                   />
                 </div>
                 <div className="flex flex-1 flex-col gap-3 min-w-0">

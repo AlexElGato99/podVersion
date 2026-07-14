@@ -4,11 +4,20 @@ import { createClient } from "@/lib/supabase/server";
 import ShopClient from "./ShopClient";
 
 export const metadata = {
-  title: "Shop Custom Graphic Tees, Hoodies & Gifts",
-  description: "Browse PrintDrop's full catalog of custom print-on-demand products — graphic tees, hoodies, mugs, posters, stickers & more. Free shipping on orders $50+.",
+  title: "Shop Custom Graphic Tees, Hoodies & Gifts | PrintDrop",
+  description: "Browse PrintDrop’s full catalog of artist-designed graphic tees, hoodies, mugs, posters, stickers & more. Printed on demand, shipped across the USA. Free shipping on orders $50+.",
+  keywords: ["custom graphic tees", "buy graphic tees online", "print on demand shop", "custom hoodies USA", "unique gifts online", "artist designed shirts"],
+  alternates: { canonical: "https://printdrop.com/shop" },
   openGraph: {
     title: "Shop Custom Graphic Tees, Hoodies & Gifts | PrintDrop",
-    description: "Browse PrintDrop's full catalog of custom print-on-demand products — graphic tees, hoodies, mugs, posters, stickers & more. Free shipping on orders $50+.",
+    description: "Artist-designed graphic tees, hoodies, mugs & more. Printed on demand and shipped across the USA. Free shipping on orders $50+.",
+    url: "https://printdrop.com/shop",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Shop Custom Graphic Tees, Hoodies & Gifts | PrintDrop",
+    description: "Artist-designed graphic tees, hoodies, mugs & more. Free US shipping on orders $50+.",
   },
 };
 

@@ -210,7 +210,6 @@ export default function ShopClient({ products, categoryOptions = [] }: { product
                 </button>
                 );
               })}
-              ))}
             </div>
           </div>
 

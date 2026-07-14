@@ -447,7 +447,75 @@ export default function ProductClient({ product }: ProductClientProps) {
             </div>
           </div>
         </div>
+
+        {/* FAQ Section — structured data for Google rich results */}
+        <FaqSection productName={sync_product.name} />
       </div>
     </div>
+  );
+}
+
+const FAQ_ITEMS = [
+  {
+    q: "How long does shipping take?",
+    a: "Orders are printed and dispatched within 2–5 business days. Standard US shipping takes an additional 3–5 business days. Most customers receive their order within 7–10 business days.",
+  },
+  {
+    q: "What is your return policy?",
+    a: "We offer a 30-day no-questions-asked return policy. If your item arrives damaged, misprinted, or defective, we'll send a replacement or full refund — no return shipping needed.",
+  },
+  {
+    q: "What printing method is used?",
+    a: "Products are printed using Direct-to-Garment (DTG) printing or embroidery depending on the item, fulfilled by Printful. DTG produces vibrant, long-lasting prints that won't crack or fade.",
+  },
+  {
+    q: "How should I wash this product?",
+    a: "For best results, wash inside-out in cold water on a gentle cycle. Tumble dry on low heat or hang to dry. Avoid bleach and ironing directly on the print.",
+  },
+  {
+    q: "Do you ship internationally?",
+    a: "We currently focus on US orders for the fastest delivery experience. International shipping may be available at checkout — shipping times vary by country.",
+  },
+];
+
+function FaqSection({ productName }: { productName: string }) {
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": FAQ_ITEMS.map((item) => ({
+      "@type": "Question",
+      "name": item.q,
+      "acceptedAnswer": { "@type": "Answer", "text": item.a },
+    })),
+  };
+
+  return (
+    <section className="mt-16 border-t border-zinc-100 pt-12">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
+      <h2 className="text-xl font-bold text-zinc-900 mb-6">
+        Frequently Asked Questions about {productName}
+      </h2>
+      <div className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200 overflow-hidden">
+        {FAQ_ITEMS.map((item, idx) => (
+          <div key={idx}>
+            <button
+              onClick={() => setOpenIdx(openIdx === idx ? null : idx)}
+              className="w-full flex items-center justify-between gap-4 px-6 py-4 text-left hover:bg-zinc-50 transition-colors"
+            >
+              <span className="text-sm font-semibold text-zinc-800">{item.q}</span>
+              <ChevronDown
+                className={cn("h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-200", openIdx === idx && "rotate-180")}
+              />
+            </button>
+            {openIdx === idx && (
+              <div className="px-6 pb-5">
+                <p className="text-sm text-zinc-600 leading-relaxed">{item.a}</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

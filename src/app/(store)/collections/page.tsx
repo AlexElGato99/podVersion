@@ -3,11 +3,20 @@ import Image from "next/image";
 import { getCatalogCategories } from "@/lib/printful";
 
 export const metadata = {
-  title: "Curated Collections — Graphic Tees, Gifts & More | PrintDrop",
-  description: "Explore PrintDrop curated collections: Sportswear, Streetwear, Beachwear, Bestsellers, New Arrivals and more. Custom print-on-demand products shipped worldwide.",
+  title: "Curated Collections — Streetwear, Sportswear, Gifts & More | PrintDrop",
+  description: "Explore PrintDrop curated collections: Bestsellers, New Arrivals, Streetwear, Sportswear, Eco-friendly & Gift sets. Artist-designed print-on-demand products shipped across the USA.",
+  keywords: ["curated apparel collections", "streetwear graphic tees", "sportswear print on demand", "eco friendly shirts", "gift sets USA", "bestseller graphic tees"],
+  alternates: { canonical: "https://printdrop.com/collections" },
   openGraph: {
-    title: "Curated Collections — Graphic Tees, Gifts & More | PrintDrop",
-    description: "Explore PrintDrop curated collections of custom print-on-demand apparel and gifts. Shop now.",
+    title: "Curated Collections — Streetwear, Sportswear, Gifts & More | PrintDrop",
+    description: "Explore PrintDrop’s curated collections of custom apparel and gifts. Bestsellers, new arrivals, streetwear & more. Free shipping on orders $50+.",
+    url: "https://printdrop.com/collections",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Curated Collections | PrintDrop",
+    description: "Bestsellers, Streetwear, Sportswear, Eco-friendly & Gift collections. Artist-designed, shipped across the USA.",
   },
 };
 
