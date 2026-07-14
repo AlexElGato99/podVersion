@@ -53,7 +53,7 @@ export interface PrintfulProductDetail {
   sync_variants: PrintfulVariant[];
 }
 
-export async function getProducts(): Promise<(PrintfulProduct & { starting_price: string | null })[]> {
+export async function getProducts(): Promise<(PrintfulProduct & { starting_price: string | null; best_image: string })[]> {
   const data = await printfulFetch("/store/products?limit=50");
   const products: PrintfulProduct[] = data.result ?? [];
 
@@ -62,9 +62,14 @@ export async function getProducts(): Promise<(PrintfulProduct & { starting_price
       try {
         const detail: PrintfulProductDetail = await printfulFetch(`/store/products/${p.id}`);
         const price = detail.sync_variants?.[0]?.retail_price ?? null;
-        return { ...p, starting_price: price };
+        // Best image priority: variant preview (with design) → thumbnail
+        const previewFile = detail.sync_variants
+          ?.flatMap((v) => v.files ?? [])
+          .find((f) => f.type === "preview" && f.preview_url);
+        const best_image = previewFile?.preview_url ?? p.thumbnail_url ?? "";
+        return { ...p, starting_price: price, best_image };
       } catch {
-        return { ...p, starting_price: null };
+        return { ...p, starting_price: null, best_image: p.thumbnail_url ?? "" };
       }
     })
   );

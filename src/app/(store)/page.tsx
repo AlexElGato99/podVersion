@@ -1,4 +1,5 @@
 ﻿import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowRight,
   Truck,
@@ -6,7 +7,7 @@ import {
   RotateCcw,
   Zap,
 } from "lucide-react";
-import { getProducts } from "@/lib/printful";
+import { getProducts, getCatalogCategories } from "@/lib/printful";
 import ProductCard from "@/components/ui/ProductCard";
 import { createClient } from "@/lib/supabase/server";
 
@@ -38,10 +39,8 @@ interface HeroSettings {
 interface StoreCategory {
   id: string;
   name: string;
-  icon: string;
-  icon_url?: string;
+  image_url: string;
   href: string;
-  color: string;
 }
 
 interface CategorySettings {
@@ -53,14 +52,7 @@ interface CategorySettings {
 const CATEGORY_DEFAULTS: CategorySettings = {
   section_title: "Shop by Category",
   section_description: "Find exactly what you're looking for",
-  categories: [
-    { id: "1", name: "T-Shirts",    icon: "👕", href: "/shop?category=t-shirts",    color: "from-violet-600 to-purple-600" },
-    { id: "2", name: "Hoodies",     icon: "🧥", href: "/shop?category=hoodies",      color: "from-blue-600 to-cyan-600" },
-    { id: "3", name: "Mugs",        icon: "☕", href: "/shop?category=mugs",         color: "from-amber-600 to-orange-600" },
-    { id: "4", name: "Posters",     icon: "🖼️", href: "/shop?category=posters",     color: "from-pink-600 to-rose-600" },
-    { id: "5", name: "Hats",        icon: "🎩", href: "/shop?category=hats",         color: "from-green-600 to-emerald-600" },
-    { id: "6", name: "Accessories", icon: "💎", href: "/shop?category=accessories",  color: "from-indigo-600 to-violet-600" },
-  ],
+  categories: [],
 };
 
 async function getCategorySettings(): Promise<CategorySettings> {
@@ -70,8 +62,23 @@ async function getCategorySettings(): Promise<CategorySettings> {
     if (data) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id: _id, updated_at: _u, ...rest } = data;
-      return { ...CATEGORY_DEFAULTS, ...rest };
+      const merged: CategorySettings = { ...CATEGORY_DEFAULTS, ...rest };
+      if (merged.categories?.length > 0) return merged;
     }
+  } catch { /* fall through */ }
+  // Fall back to Printful top-level categories
+  try {
+    const all = await getCatalogCategories() as { id: number; parent_id: number; title: string; image_url: string }[];
+    const top = all.filter((c) => c.parent_id === 0 && c.id !== 159 && c.id !== 277).slice(0, 7);
+    return {
+      ...CATEGORY_DEFAULTS,
+      categories: top.map((c) => ({
+        id: String(c.id),
+        name: c.title,
+        image_url: c.image_url,
+        href: `/shop?category=${encodeURIComponent(c.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"))}`,
+      })),
+    };
   } catch { /* fall through */ }
   return CATEGORY_DEFAULTS;
 }
@@ -148,6 +155,18 @@ async function getFeaturedProducts() {
   }
 }
 
+async function getPrintfulCategories() {
+  try {
+    const all = await getCatalogCategories();
+    // Top-level only (parent_id === 0), skip "Brands" and "All products"
+    return (all as { id: number; parent_id: number; title: string; image_url: string }[])
+      .filter((c) => c.parent_id === 0 && c.id !== 159 && c.id !== 277)
+      .slice(0, 8);
+  } catch {
+    return [];
+  }
+}
+
 const features = [
   {
     icon: Truck,
@@ -172,14 +191,15 @@ const features = [
 ];
 
 export default async function HomePage() {
-  const [products, hero, categoryData] = await Promise.all([getFeaturedProducts(), getHeroSettings(), getCategorySettings()]);
+  const [products, hero, categoryData] = await Promise.all([
+    getFeaturedProducts(), getHeroSettings(), getCategorySettings()
+  ]);
 
   return (
     <div className="overflow-x-hidden bg-white">
       {/* ── Hero — Etsy style ── */}
       <section
-        className="relative min-h-screen pt-[100px] flex flex-col"
-        style={{ background: `linear-gradient(160deg, ${hero.bg_from} 0%, ${hero.bg_to} 100%)` }}
+        className="relative min-h-screen pt-[100px] flex flex-col bg-white"
       >
         <div className="flex-1 flex flex-col mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8">
           <div className="flex-1 grid gap-8 py-12 lg:grid-cols-2 lg:gap-16 lg:py-0 w-full">
@@ -290,7 +310,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Categories */}
+      {/* Categories — managed via admin dashboard */}
       <section className="py-12 bg-white border-b border-zinc-100">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-7">
@@ -299,27 +319,27 @@ export default async function HomePage() {
               Browse all
             </Link>
           </div>
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-8">
-            {categoryData.categories.map((cat) => (
-              <Link
-                key={cat.id}
-                href={cat.href}
-                className="group flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-zinc-50 transition-colors"
-              >
-                <div
-                  className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${cat.color} flex items-center justify-center text-2xl shadow-md overflow-hidden`}
-                >
-                  {cat.icon_url
-                    // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={cat.icon_url} alt={cat.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    : cat.icon}
-                </div>
-                <span className="text-xs font-medium text-zinc-600 group-hover:text-zinc-900 text-center transition-colors leading-tight">
-                  {cat.name}
-                </span>
-              </Link>
-            ))}
-          </div>
+          {categoryData.categories.length > 0 && (
+            <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 lg:grid-cols-7">
+              {categoryData.categories.map((cat) => (
+                <Link key={cat.id} href={cat.href} className="group flex flex-col items-center gap-2.5">
+                  <div className="relative w-full aspect-square overflow-hidden rounded-2xl bg-zinc-100 border border-zinc-200 group-hover:border-brand-300 group-hover:shadow-md transition-all duration-200">
+                    <Image
+                      src={cat.image_url}
+                      alt={cat.name}
+                      fill
+                      sizes="(max-width: 640px) 33vw, (max-width: 1024px) 25vw, 14vw"
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      unoptimized
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-zinc-700 group-hover:text-brand-600 text-center leading-tight transition-colors">
+                    {cat.name}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -343,8 +363,8 @@ export default async function HomePage() {
                   key={product.id}
                   id={product.id}
                   name={product.name}
-                  price={0}
-                  imageUrl={product.thumbnail_url}
+                  price={product.starting_price ? parseFloat(product.starting_price) : 0}
+                  imageUrl={product.best_image || product.thumbnail_url}
                   freeShipping={product.id % 2 === 0}
                   badge={product.id % 4 === 0 ? "Bestseller" : undefined}
                 />

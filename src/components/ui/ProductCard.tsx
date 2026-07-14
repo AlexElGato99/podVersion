@@ -32,6 +32,7 @@ export default function ProductCard({
   className,
 }: ProductCardProps) {
   const [liked, setLiked] = useState(false);
+  const [imgSrc, setImgSrc] = useState(imageUrl || "/placeholder-product.jpg");
 
   return (
     <Link
@@ -41,11 +42,12 @@ export default function ProductCard({
       {/* Image */}
       <div className="relative aspect-square overflow-hidden rounded-2xl bg-zinc-100">
         <Image
-          src={imageUrl || "/placeholder-product.jpg"}
+          src={imgSrc}
           alt={name}
           fill
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
           className="object-cover transition-transform duration-500 group-hover:scale-105"
+          onError={() => setImgSrc("/placeholder-product.jpg")}
           unoptimized
         />
 

@@ -46,19 +46,20 @@ export default function ProductClient({ product }: ProductClientProps) {
   const { sync_product, sync_variants } = product;
   const { addItem } = useCart();
 
-  // Map: color → { shirtImage, designImage, mockupImage }
-  // shirtImage: catalog shirt in the right color (always available for all colors)
-  // designImage: front_large print file (the artwork, same per product)
-  // mockupImage: Printful-generated mockup with design (only available for some colors)
+  // Map: color → { hexCode, mockupImage, shirtImage }
+  // mockupImage = real Printful-generated preview with your design (only some colors)
+  // shirtImage  = catalog photo of the blank shirt in this color (all colors)
   const colorDataMap = useMemo(() => {
-    const map = new Map<string, { shirtImage: string | null; designImage: string | null; mockupImage: string | null }>();
+    const map = new Map<string, { hexCode: string | null; mockupImage: string | null; shirtImage: string | null }>();
     for (const v of sync_variants) {
       if (!v.color) continue;
       if (!map.has(v.color)) {
         const mockup = v.files?.find((f) => f.type === "preview" && f.preview_url)?.preview_url ?? null;
-        const design = v.files?.find((f) => f.type === "front_large" && f.preview_url)?.preview_url ?? null;
-        const shirt  = v.product?.image ?? null;
-        map.set(v.color, { shirtImage: shirt, designImage: design, mockupImage: mockup });
+        map.set(v.color, {
+          hexCode:    v.color_code ?? null,
+          mockupImage: mockup,
+          shirtImage:  v.product?.image ?? null,
+        });
       }
     }
     return map;
@@ -122,24 +123,19 @@ export default function ProductClient({ product }: ProductClientProps) {
     }) ?? sync_variants[0];
   }, [sync_variants, selectedColor, selectedSize, hasColors, hasSizes]);
 
-  // Build per-color mockup thumbnails for the gallery strip
-  // Only colors that have a Printful-generated mockup image appear here
-  const colorThumbnails = useMemo(() => {
-    const seen = new Set<string>();
-    const result: { color: string; image: string }[] = [];
-    for (const v of sync_variants) {
-      if (!v.color || seen.has(v.color)) continue;
-      seen.add(v.color);
-      const cd = colorDataMap.get(v.color);
-      if (cd?.mockupImage) result.push({ color: v.color, image: cd.mockupImage });
-    }
-    return result;
-  }, [sync_variants, colorDataMap]);
+  // Thumbnail strip: one per color that has a real Printful mockup
+  const colorThumbnails = useMemo(() =>
+    colors
+      .map((color) => ({ color, image: colorDataMap.get(color)?.mockupImage ?? null }))
+      .filter((t): t is { color: string; image: string } => t.image !== null)
+  , [colors, colorDataMap]);
 
-  const [selectedImage, setSelectedImage] = useState<string>(() => {
-    const first = colors[0] ? colorDataMap.get(colors[0]) : undefined;
-    return (first?.mockupImage ?? first?.shirtImage ?? sync_product.thumbnail_url) || "";
-  });
+  // No separate selectedImage state needed — main image is derived from selectedColor
+  // (kept only for cart imageUrl)
+  const displayImage = (() => {
+    const cd = colorDataMap.get(selectedColor);
+    return cd?.mockupImage ?? cd?.shirtImage ?? sync_product.thumbnail_url ?? "";
+  })();
   const [quantity, setQuantity] = useState(1);
   const [wishlist, setWishlist] = useState(false);
   const [added, setAdded] = useState(false);
@@ -151,7 +147,7 @@ export default function ProductClient({ product }: ProductClientProps) {
       name: `${sync_product.name} — ${selectedVariant.name}`,
       price: parseFloat(selectedVariant.retail_price),
       currency: selectedVariant.currency,
-      imageUrl: selectedImage || "",
+      imageUrl: displayImage,
       quantity,
     });
     setAdded(true);
@@ -175,31 +171,35 @@ export default function ProductClient({ product }: ProductClientProps) {
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 xl:gap-16">
           {/* Image gallery */}
           <div className="flex flex-col gap-4">
-            <div className="relative aspect-square overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-50">
+            <div className="relative aspect-square overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-100">
               {(() => {
                 const cd = colorDataMap.get(selectedColor);
-                const src = (cd?.mockupImage ?? cd?.shirtImage ?? selectedImage) || "/placeholder-product.jpg";
+                // Priority: real design mockup → catalog shirt in correct color → thumbnail → placeholder
+                const src = cd?.mockupImage ?? cd?.shirtImage ?? sync_product.thumbnail_url ?? "/placeholder-product.jpg";
                 return (
-                  <Image
-                    src={src}
-                    alt={`${sync_product.name} in ${selectedColor}`}
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 50vw"
-                    className="object-cover transition-opacity duration-300"
-                    priority
-                    unoptimized
-                  />
+                  <>
+                    <Image
+                      src={src}
+                      alt={`${sync_product.name} in ${selectedColor}`}
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 50vw"
+                      className="object-cover transition-opacity duration-300"
+                      priority
+                      unoptimized
+                    />
+                    {/* Badge: shown when no design mockup exists for this color */}
+                    {cd && !cd.mockupImage && (
+                      <div className="absolute bottom-4 left-4 flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-sm border border-zinc-200 px-3 py-1.5 shadow-sm">
+                        {cd.hexCode && (
+                          <span className="h-3 w-3 rounded-full border border-zinc-300" style={{ background: cd.hexCode }} />
+                        )}
+                        <span className="text-xs font-medium text-zinc-700">{selectedColor}</span>
+                        <span className="text-xs text-zinc-400">· preview</span>
+                      </div>
+                    )}
+                  </>
                 );
               })()}
-              {/* Badge when selected color has no generated mockup yet */}
-              {hasColors && selectedColor && !colorDataMap.get(selectedColor)?.mockupImage && (
-                <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-white/90 backdrop-blur-sm border border-zinc-200 rounded-full px-3 py-1.5 shadow-sm">
-                  {colorMap.get(selectedColor)?.hex && (
-                    <span className="h-3.5 w-3.5 rounded-full border border-zinc-300 shrink-0" style={{ background: colorMap.get(selectedColor)!.hex }} />
-                  )}
-                  <span className="text-xs font-medium text-zinc-700">{selectedColor}</span>
-                </div>
-              )}
               <button
                 onClick={() => setWishlist(!wishlist)}
                 aria-label={wishlist ? "Remove from wishlist" : "Add to wishlist"}
@@ -219,7 +219,7 @@ export default function ProductClient({ product }: ProductClientProps) {
                   <button
                     key={color}
                     title={color}
-                    onClick={() => { setSelectedColor(color); setSelectedImage(image); }}
+                    onClick={() => setSelectedColor(color)}
                     className={cn(
                       "relative aspect-square overflow-hidden rounded-xl border-2 transition-all duration-150",
                       selectedColor === color
@@ -289,10 +289,7 @@ export default function ProductClient({ product }: ProductClientProps) {
                         title={color}
                         onClick={() => {
                           setSelectedColor(color);
-                          const cd = colorDataMap.get(color);
-                          // Use design mockup if available, otherwise catalog shirt in the right color
-                          const img = cd?.mockupImage ?? cd?.shirtImage;
-                          if (img) setSelectedImage(img);
+                          // image is derived — no setSelectedImage needed
                         }}
                         className={cn(
                           "relative h-9 w-9 rounded-full transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2",

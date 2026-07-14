@@ -1,31 +1,18 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
-  LayoutGrid,
-  Save,
-  Loader2,
-  Plus,
-  Trash2,
-  GripVertical,
-  CheckCircle2,
-  AlertCircle,
-  RefreshCcw,
-  Type,
-  ImagePlus,
-  Upload,
-  X,
+  LayoutGrid, Save, Loader2, Plus, Trash2, GripVertical,
+  CheckCircle2, AlertCircle, RefreshCcw, Type, Download, ExternalLink, Upload,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────── */
 interface Category {
   id: string;
   name: string;
-  icon: string;
-  icon_url: string;
+  image_url: string;
   href: string;
-  color: string;
 }
 
 interface CategorySettings {
@@ -34,33 +21,35 @@ interface CategorySettings {
   categories: Category[];
 }
 
+interface PrintfulCategory {
+  id: number;
+  parent_id: number;
+  title: string;
+  image_url: string;
+}
+
+/* ─── Real Printful category image URLs (by ID) ─────────── */
+const CATEGORY_IMAGES: Record<string, string> = {
+  "1":   "https://files.cdn.printful.com/o/upload/catalog_category/fb/fbf0cf796a5603666e85713ece1708a1_t?v=1764596927",
+  "2":   "https://files.cdn.printful.com/o/upload/catalog_category/04/04140d7cd1565012645092fc8f1d8632_t?v=1764596927",
+  "3":   "https://files.cdn.printful.com/o/upload/catalog_category/96/96e91feb26f0b28ba821534bb0d5478b_t?v=1764596927",
+  "4":   "https://files.cdn.printful.com/o/upload/catalog_category/b1/b1e86be07423274b27b55561ddc6eee9_t?v=1764596927",
+  "5":   "https://files.cdn.printful.com/o/upload/catalog_category/77/7776d01e716d80e3ffbdebbf3db6b198_t?v=1764596927",
+  "93":  "https://files.cdn.printful.com/o/upload/catalog_category/0c/0c38c3b13be79b5f8e1f2f1dccf62115_t?v=1764596927",
+  "116": "https://files.cdn.printful.com/o/upload/catalog_category/9e/9ed797fbbdac07a98f6fdfa06a9f6c8f_t?v=1764596928",
+};
+
+function resolveCategoryImage(cat: PrintfulCategory): string {
+  if (cat.image_url && cat.image_url.startsWith("http")) return cat.image_url;
+  return CATEGORY_IMAGES[String(cat.id)] ?? "";
+}
+
 /* ─── Defaults ───────────────────────────────────────────── */
 const DEFAULTS: CategorySettings = {
   section_title: "Shop by Category",
   section_description: "Find exactly what you're looking for",
-  categories: [
-    { id: "1", name: "T-Shirts",    icon: "👕", icon_url: "", href: "/shop?category=t-shirts",    color: "from-violet-600 to-purple-600" },
-    { id: "2", name: "Hoodies",     icon: "🧥", icon_url: "", href: "/shop?category=hoodies",      color: "from-blue-600 to-cyan-600" },
-    { id: "3", name: "Mugs",        icon: "☕", icon_url: "", href: "/shop?category=mugs",         color: "from-amber-600 to-orange-600" },
-    { id: "4", name: "Posters",     icon: "🖼️", icon_url: "", href: "/shop?category=posters",     color: "from-pink-600 to-rose-600" },
-    { id: "5", name: "Hats",        icon: "🎩", icon_url: "", href: "/shop?category=hats",         color: "from-green-600 to-emerald-600" },
-    { id: "6", name: "Accessories", icon: "💎", icon_url: "", href: "/shop?category=accessories",  color: "from-indigo-600 to-violet-600" },
-  ],
+  categories: [],
 };
-
-/* ─── Gradient presets ───────────────────────────────────── */
-const GRADIENT_PRESETS: { label: string; value: string; css: string }[] = [
-  { label: "Violet → Purple", value: "from-violet-600 to-purple-600",  css: "linear-gradient(135deg,#7c3aed,#9333ea)" },
-  { label: "Blue → Cyan",     value: "from-blue-600 to-cyan-600",      css: "linear-gradient(135deg,#2563eb,#0891b2)" },
-  { label: "Amber → Orange",  value: "from-amber-600 to-orange-600",   css: "linear-gradient(135deg,#d97706,#ea580c)" },
-  { label: "Pink → Rose",     value: "from-pink-600 to-rose-600",      css: "linear-gradient(135deg,#db2777,#e11d48)" },
-  { label: "Green → Emerald", value: "from-green-600 to-emerald-600",  css: "linear-gradient(135deg,#16a34a,#059669)" },
-  { label: "Indigo → Violet", value: "from-indigo-600 to-violet-600",  css: "linear-gradient(135deg,#4f46e5,#7c3aed)" },
-  { label: "Red → Orange",    value: "from-red-600 to-orange-600",     css: "linear-gradient(135deg,#dc2626,#ea580c)" },
-  { label: "Teal → Cyan",     value: "from-teal-600 to-cyan-600",      css: "linear-gradient(135deg,#0d9488,#0891b2)" },
-  { label: "Sky → Blue",      value: "from-sky-600 to-blue-600",       css: "linear-gradient(135deg,#0284c7,#2563eb)" },
-  { label: "Fuchsia → Pink",  value: "from-fuchsia-600 to-pink-600",   css: "linear-gradient(135deg,#c026d3,#db2777)" },
-];
 
 /* ─── Shared style tokens ────────────────────────────────── */
 const inp: React.CSSProperties = {
@@ -69,10 +58,7 @@ const inp: React.CSSProperties = {
   color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box",
 };
 
-/* ─── SectionCard ────────────────────────────────────────── */
-function SectionCard({
-  icon: Icon, title, children,
-}: { icon: React.ElementType; title: string; children: React.ReactNode }) {
+function SectionCard({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
   return (
     <div style={{ background: "var(--bg-primary)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, boxShadow: "var(--card-shadow)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
@@ -86,124 +72,92 @@ function SectionCard({
   );
 }
 
-/* ─── Field ──────────────────────────────────────────────── */
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 6 }}>{label}</label>
-      {children}
-      {hint && <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{hint}</p>}
-    </div>
-  );
-}
-
-/* ─── IconUploader ───────────────────────────────────────── */
-function IconUploader({
-  currentUrl, catId, token, onUploaded,
-}: {
-  currentUrl: string; catId: string; token: string; onUploaded: (url: string) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [dragOver, setDragOver] = useState(false);
-
-  const upload = useCallback(async (file: File) => {
-    setUploading(true); setErr(null); setProgress("Converting to WebP…");
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("slot", `category-icon-${catId}`);
-    try {
-      const res = await fetch("/api/upload-hero-image", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Upload failed");
-      setProgress(`Done · ${json.original_size_kb}KB → ${json.size_kb}KB WebP`);
-      onUploaded(json.url);
-      setTimeout(() => setProgress(null), 4000);
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setUploading(false);
-    }
-  }, [catId, token, onUploaded]);
-
-  const onFile = (files: FileList | null) => { if (files?.[0]) upload(files[0]); };
-
-  return (
-    <div>
-      {currentUrl ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={currentUrl} alt="" style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 10, border: "1px solid var(--border)", background: "#f8fafc" }} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <button onClick={() => inputRef.current?.click()} disabled={uploading} style={{ fontSize: 11, color: "var(--purple)", cursor: "pointer", background: "none", border: "none", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
-              <Upload size={11} /> Replace
-            </button>
-            <button onClick={() => onUploaded("")} style={{ fontSize: 11, color: "#dc2626", cursor: "pointer", background: "none", border: "none", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
-              <X size={11} /> Remove
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => { e.preventDefault(); setDragOver(false); onFile(e.dataTransfer.files); }}
-          onClick={() => !uploading && inputRef.current?.click()}
-          style={{ border: `2px dashed ${dragOver ? "var(--purple)" : "var(--border)"}`, borderRadius: 10, padding: "12px 10px", textAlign: "center", cursor: uploading ? "wait" : "pointer", background: dragOver ? "var(--purple-light)" : "var(--bg-secondary)", transition: "all 0.15s" }}
-        >
-          {uploading ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-              <Loader2 size={16} color="var(--purple)" style={{ animation: "spin 1s linear infinite" }} />
-              <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{progress}</span>
-            </div>
-          ) : (
-            <>
-              <ImagePlus size={18} color="var(--text-muted)" style={{ margin: "0 auto 4px" }} />
-              <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0 }}>Click or drag image</p>
-            </>
-          )}
-        </div>
-      )}
-      <input ref={inputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => onFile(e.target.files)} />
-      {err && <p style={{ fontSize: 11, color: "#dc2626", marginTop: 4 }}>{err}</p>}
-      {progress && !uploading && <p style={{ fontSize: 11, color: "var(--accent-dark)", marginTop: 4 }}>{progress}</p>}
-    </div>
-  );
-}
-
 /* ─── Main page ──────────────────────────────────────────── */
 export default function CategoriesSettingsPage() {
   const [settings, setSettings] = useState<CategorySettings>(DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [token, setToken] = useState("");
+  const [printfulCats, setPrintfulCats] = useState<PrintfulCategory[]>([]);
+  const [showPicker, setShowPicker] = useState(false);
 
   const supabase = createClient();
 
   useEffect(() => {
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) setToken(session.access_token);
-
       const { data } = await supabase.from("category_settings").select("*").eq("id", 1).single();
       if (data) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id: _id, updated_at: _u, ...rest } = data;
-        const merged: CategorySettings = { ...DEFAULTS, ...rest };
-        merged.categories = (merged.categories || []).map((c: Category) => ({ icon_url: "", ...c }));
-        setSettings(merged);
+        setSettings({ ...DEFAULTS, ...rest });
       }
       setLoading(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const importFromPrintful = useCallback(async () => {
+    setImporting(true);
+    try {
+      const res = await fetch("/api/printful-categories");
+      const json = await res.json();
+      const top = (json.categories as PrintfulCategory[])
+        .filter((c) => c.parent_id === 0 && c.id !== 159 && c.id !== 277)
+        .slice(0, 10);
+      setPrintfulCats(top);
+      setShowPicker(true);
+    } catch {
+      setMsg({ type: "error", text: "Failed to fetch Printful categories." });
+    } finally {
+      setImporting(false);
+    }
+  }, []);
+
+  const seedFromPrintful = useCallback(async () => {
+    setImporting(true);
+    try {
+      const res = await fetch("/api/printful-categories");
+      const json = await res.json();
+      const top = (json.categories as PrintfulCategory[])
+        .filter((c) => c.parent_id === 0 && c.id !== 159 && c.id !== 277)
+        .slice(0, 7);
+      const seeded = top.map((c) => ({
+        id: String(c.id),
+        name: c.title,
+        image_url: resolveCategoryImage(c),
+        href: `/shop?category=${encodeURIComponent(c.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"))}`,
+      }));
+      const newSettings = { ...settings, categories: seeded };
+      setSettings(newSettings);
+      // Save to DB immediately
+      setSaving(true);
+      const { error } = await supabase.from("category_settings").upsert({ id: 1, ...newSettings, updated_at: new Date().toISOString() });
+      setSaving(false);
+      setMsg(error
+        ? { type: "error", text: error.message }
+        : { type: "success", text: `Seeded ${seeded.length} categories from Printful and saved. You can now edit them below.` });
+      setTimeout(() => setMsg(null), 6000);
+    } catch {
+      setMsg({ type: "error", text: "Failed to seed from Printful." });
+    } finally {
+      setImporting(false);
+    }
+  }, [settings, supabase]);
+
+  const pickPrintfulCategory = (cat: PrintfulCategory) => {
+    const slug = cat.title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const newCat: Category = {
+      id: String(cat.id),
+      name: cat.title,
+      image_url: resolveCategoryImage(cat),
+      href: `/shop?category=${encodeURIComponent(slug)}`,
+    };
+    setSettings((s) => {
+      if (s.categories.find((c) => c.id === newCat.id)) return s; // already added
+      return { ...s, categories: [...s.categories, newCat] };
+    });
+  };
 
   const save = useCallback(async () => {
     setSaving(true); setMsg(null);
@@ -213,14 +167,32 @@ export default function CategoriesSettingsPage() {
     setTimeout(() => setMsg(null), 5000);
   }, [settings, supabase]);
 
+  const uploadImage = useCallback(async (catId: string, file: File) => {
+    setUploadingId(catId);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("catId", catId);
+      const res = await fetch("/api/upload-category-image", { method: "POST", body: form });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Upload failed");
+      setCat(catId, "image_url", json.url);
+    } catch (e) {
+      setMsg({ type: "error", text: `Upload failed: ${(e as Error).message}` });
+      setTimeout(() => setMsg(null), 5000);
+    } finally {
+      setUploadingId(null);
+    }
+  }, []);
+
   const set = (key: keyof CategorySettings, value: string) => setSettings((s) => ({ ...s, [key]: value }));
-  const setCategory = (id: string, key: keyof Category, value: string) =>
+  const setCat = (id: string, key: keyof Category, value: string) =>
     setSettings((s) => ({ ...s, categories: s.categories.map((c) => c.id === id ? { ...c, [key]: value } : c) }));
-  const addCategory = () => {
-    const newId = Date.now().toString();
-    setSettings((s) => ({ ...s, categories: [...s.categories, { id: newId, name: "New Category", icon: "🏷️", icon_url: "", href: "/shop", color: "from-violet-600 to-purple-600" }] }));
-  };
-  const removeCategory = (id: string) => setSettings((s) => ({ ...s, categories: s.categories.filter((c) => c.id !== id) }));
+  const removeCat = (id: string) => setSettings((s) => ({ ...s, categories: s.categories.filter((c) => c.id !== id) }));
+  const addBlank = () => setSettings((s) => ({
+    ...s,
+    categories: [...s.categories, { id: Date.now().toString(), name: "New Category", image_url: "", href: "/shop" }],
+  }));
 
   if (loading) {
     return (
@@ -237,11 +209,11 @@ export default function CategoriesSettingsPage() {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Category Section</h1>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>Edit the &quot;Shop by Category&quot; section on the store homepage.</p>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+            Manage the &quot;Shop by Category&quot; section on the homepage. Import from Printful or add custom categories.
+          </p>
         </div>
-        <button onClick={() => setSettings(DEFAULTS)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" }}>
-          <RefreshCcw size={13} /> Reset defaults
-        </button>
+
       </div>
 
       {/* Toast */}
@@ -251,89 +223,99 @@ export default function CategoriesSettingsPage() {
         </div>
       )}
 
+
+
       <div style={{ display: "grid", gap: 20 }}>
 
         {/* Section Header */}
         <SectionCard icon={Type} title="Section Header">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <Field label="Section Title">
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 6 }}>Section Title</label>
               <input type="text" value={settings.section_title} onChange={(e) => set("section_title", e.target.value)} style={inp} placeholder="Shop by Category" />
-            </Field>
-            <Field label="Section Description">
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 6 }}>Section Description</label>
               <input type="text" value={settings.section_description} onChange={(e) => set("section_description", e.target.value)} style={inp} placeholder="Find exactly what you're looking for" />
-            </Field>
+            </div>
           </div>
         </SectionCard>
 
-        {/* Categories */}
-        <SectionCard icon={GripVertical} title="Categories">
-          <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: -10, marginBottom: 20 }}>
-            Each card shows an <strong>uploaded icon image</strong> or falls back to the <strong>emoji</strong>. Upload a PNG / SVG / WebP icon for the best look.
+        {/* Categories list */}
+        <SectionCard icon={GripVertical} title={`Categories (${settings.categories.length})`}>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: -10, marginBottom: 16 }}>
+            Each category shows a square image. Paste any image URL or upload from computer. The live preview below matches exactly how it looks on the homepage.
           </p>
 
+
+
+          {/* ── Edit cards ─────────────────────────────────── */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {settings.categories.map((cat, idx) => (
-              <div key={cat.id} style={{ border: "1px solid var(--border)", borderRadius: 12, padding: 18, background: "var(--bg-secondary)" }}>
+              <div key={cat.id} style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--bg-secondary)" }}>
 
-                {/* Row header */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg,#7c3aed,#9333ea)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, overflow: "hidden" }}>
-                      {cat.icon_url
-                        // eslint-disable-next-line @next/next/no-img-element
-                        ? <img src={cat.icon_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        : cat.icon || "?"}
-                    </div>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--purple)" }}>Category {idx + 1}</span>
+                {/* Header row with square preview */}
+                <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", borderBottom: "1px solid var(--border)", background: "var(--bg-primary)" }}>
+                  {/* Square preview — same aspect-ratio as frontend */}
+                  <div style={{ position: "relative", width: 72, height: 72, borderRadius: 14, overflow: "hidden", background: "#f4f4f5", border: "1px solid #e4e4e7", flexShrink: 0 }}>
+                    {cat.image_url
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={cat.image_url} alt={cat.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "#94a3b8" }}>🖼️</div>
+                    }
                   </div>
-                  <button onClick={() => removeCategory(cat.id)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 7, border: "1px solid #fecaca", background: "#fff1f2", color: "#dc2626", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-                    <Trash2 size={12} /> Remove
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>#{idx + 1} — {cat.name || "Untitled"}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{cat.href || "No link set"}</div>
+                  </div>
+                  <button onClick={() => removeCat(cat.id)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 7, border: "1px solid #fecaca", background: "#fff1f2", color: "#dc2626", fontSize: 11, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>
+                    <Trash2 size={11} /> Remove
                   </button>
                 </div>
 
                 {/* Fields */}
-                <div style={{ display: "grid", gridTemplateColumns: "140px 1fr 1fr", gap: 14, alignItems: "start" }}>
-
-                  {/* Icon upload */}
+                <div style={{ padding: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 500, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Icon Image</label>
-                    <IconUploader currentUrl={cat.icon_url} catId={cat.id} token={token} onUploaded={(url) => setCategory(cat.id, "icon_url", url)} />
-                    <div style={{ marginTop: 8 }}>
-                      <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Emoji fallback</label>
-                      <input type="text" value={cat.icon} onChange={(e) => setCategory(cat.id, "icon", e.target.value)} style={{ ...inp, fontSize: 18, textAlign: "center" }} placeholder="👕" />
-                    </div>
+                    <label style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 5 }}>Name</label>
+                    <input type="text" value={cat.name} onChange={(e) => setCat(cat.id, "name", e.target.value)} style={inp} placeholder="T-Shirts" />
                   </div>
-
-                  {/* Name + Link */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 500, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Category Name</label>
-                      <input type="text" value={cat.name} onChange={(e) => setCategory(cat.id, "name", e.target.value)} style={inp} placeholder="T-Shirts" />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 500, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Link URL</label>
-                      <input type="text" value={cat.href} onChange={(e) => setCategory(cat.id, "href", e.target.value)} style={inp} placeholder="/shop?category=t-shirts" />
-                    </div>
-                  </div>
-
-                  {/* Gradient */}
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 500, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Icon Background Gradient</label>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                      {GRADIENT_PRESETS.map((p) => (
-                        <button key={p.value} title={p.label} onClick={() => setCategory(cat.id, "color", p.value)} style={{ width: 26, height: 26, borderRadius: 6, cursor: "pointer", padding: 0, background: p.css, border: cat.color === p.value ? "2px solid var(--purple)" : "2px solid transparent", outline: cat.color === p.value ? "2px solid var(--purple-light)" : "none", transition: "all 0.12s" }} />
-                      ))}
-                    </div>
-                    <input type="text" value={cat.color} onChange={(e) => setCategory(cat.id, "color", e.target.value)} style={{ ...inp, fontSize: 11 }} placeholder="from-violet-600 to-purple-600" />
-                    <div style={{ marginTop: 6, height: 8, borderRadius: 6, background: GRADIENT_PRESETS.find(p => p.value === cat.color)?.css ?? "linear-gradient(135deg,#7c3aed,#9333ea)" }} />
+                    <label style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 5 }}>Link URL</label>
+                    <input type="text" value={cat.href} onChange={(e) => setCat(cat.id, "href", e.target.value)} style={inp} placeholder="/shop?category=t-shirts" />
                   </div>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 5 }}>Image</label>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <input type="text" value={cat.image_url} onChange={(e) => setCat(cat.id, "image_url", e.target.value)} style={{ ...inp, flex: 1 }} placeholder="Paste URL or upload from computer →" />
+                      <label style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: "1px solid var(--border)", background: uploadingId === cat.id ? "#f1f5f9" : "var(--bg-primary)", color: uploadingId === cat.id ? "var(--text-muted)" : "var(--text-primary)", fontSize: 12, fontWeight: 600, cursor: uploadingId === cat.id ? "wait" : "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {uploadingId === cat.id
+                          ? <><Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> Uploading…</>
+                          : <><Upload size={13} /> Upload image</>}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: "none" }}
+                          disabled={uploadingId !== null}
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(cat.id, f); e.target.value = ""; }}
+                        />
+                      </label>
+                    </div>
+                    <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Uploaded images are stored in Supabase Storage. Editing the URL overrides the upload.</p>
+                  </div>
+                  {cat.href && (
+                    <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
+                      <a href={cat.href} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 7, border: "1px solid var(--border)", background: "var(--bg-primary)", color: "var(--purple)", fontSize: 12, fontWeight: 500, textDecoration: "none" }}>
+                        <ExternalLink size={12} /> View in store
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
 
-          <button onClick={addCategory} style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 16, padding: "10px 0", borderRadius: 9, border: "1.5px dashed var(--purple)", background: "var(--purple-light)", color: "var(--purple)", fontSize: 13, fontWeight: 600, cursor: "pointer", width: "100%", justifyContent: "center" }}>
-            <Plus size={15} /> Add Category
+          <button onClick={addBlank} style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 14, padding: "10px 0", borderRadius: 9, border: "1.5px dashed var(--purple)", background: "var(--purple-light)", color: "var(--purple)", fontSize: 13, fontWeight: 600, cursor: "pointer", width: "100%", justifyContent: "center" }}>
+            <Plus size={15} /> Add Custom Category
           </button>
         </SectionCard>
 
@@ -342,10 +324,15 @@ export default function CategoriesSettingsPage() {
       {/* Save bar */}
       <div style={{ marginTop: 28, padding: "16px 20px", background: "var(--bg-primary)", border: "1px solid var(--border)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, boxShadow: "var(--card-shadow)" }}>
         <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>Changes go live on the store homepage immediately after saving.</p>
-        <button onClick={save} disabled={saving} style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 22px", borderRadius: 8, border: "none", background: saving ? "var(--text-muted)" : "var(--purple)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer" }}>
-          {saving ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <Save size={15} />}
-          {saving ? "Saving…" : "Save Changes"}
-        </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => setSettings(DEFAULTS)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" }}>
+            <RefreshCcw size={13} /> Reset
+          </button>
+          <button onClick={save} disabled={saving} style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 22px", borderRadius: 8, border: "none", background: saving ? "var(--text-muted)" : "var(--purple)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer" }}>
+            {saving ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <Save size={15} />}
+            {saving ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
       </div>
 
     </div>
