@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getCatalogProductVariants, getCatalogProductPrintfiles, createPrintfulSyncProduct } from "@/lib/printful";
+import {
+  getCatalogProductVariants,
+  getCatalogProductPrintfiles,
+  createPrintfulSyncProduct,
+  uploadFileToPrintful,
+  createMockupTask,
+  pollMockupTask,
+} from "@/lib/printful";
 
 const db = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -91,10 +98,33 @@ export async function POST(req: NextRequest) {
 async function runPublishJob(
   jobId: string,
   design: { id: string; name: string; url: string; tags?: string },
-  collectionProducts: { catalog_product_id: number; catalog_product_name: string; placement?: string; default_price?: string }[]
+  collectionProducts: { catalog_product_id: number; catalog_product_name: string; placement?: string; default_price?: string; selected_variant_ids?: number[] }[]
 ) {
   let completed = 0;
   let failed = 0;
+
+  // Load saved product templates to use as defaults
+  const { data: templates } = await db
+    .from("product_templates")
+    .select("catalog_product_id, selected_variant_ids, placement, default_price")
+    .in("catalog_product_id", collectionProducts.map((cp) => cp.catalog_product_id));
+  const templateMap = new Map(
+    (templates ?? []).map((t: { catalog_product_id: number; selected_variant_ids: number[]; placement: string; default_price: string }) =>
+      [t.catalog_product_id, t]
+    )
+  );
+
+  // Upload design file to Printful's file library ONCE — reuse the file ID across all products
+  let printfulFileId: number | undefined;
+  let printfulPreviewUrl: string = design.url;
+  try {
+    const uploaded = await uploadFileToPrintful(design.url, design.name + ".png");
+    printfulFileId = uploaded.id;
+    printfulPreviewUrl = uploaded.preview_url ?? design.url;
+  } catch (e) {
+    // If upload fails, fall back to URL-based file (mockups may not generate)
+    console.warn("[PublishJob] Could not pre-upload design to Printful:", e);
+  }
 
   for (const cp of collectionProducts) {
     const itemFilter = {
@@ -124,33 +154,69 @@ async function runPublishJob(
         continue;
       }
 
-      // Get variants for this catalog product
-      const variants = await getCatalogProductVariants(cp.catalog_product_id);
-      if (!variants || variants.length === 0) throw new Error("No variants found for catalog product");
+      // Determine which variant IDs to use
+      // Priority: collection product selection > saved template > all variants
+      const template = templateMap.get(cp.catalog_product_id) as { selected_variant_ids?: number[]; placement?: string; default_price?: string } | undefined;
+      const cpAny = cp as { selected_variant_ids?: number[] };
 
-      // Get placement info
-      const printfiles = await getCatalogProductPrintfiles(cp.catalog_product_id);
-      const placement = cp.placement
-        ?? printfiles?.placements?.[0]?.placement_id
-        ?? "front";
+      let variantIds: number[];
+      let effectivePlacement = cp.placement ?? template?.placement ?? "front";
+      let effectivePrice     = cp.default_price ?? template?.default_price ?? "24.99";
 
-      // Use first 20 variants (most stores don't need all sizes/colors upfront)
-      const selectedVariants = variants.slice(0, 20);
+      if (cpAny.selected_variant_ids && cpAny.selected_variant_ids.length > 0) {
+        variantIds = cpAny.selected_variant_ids;
+      } else if (template?.selected_variant_ids && template.selected_variant_ids.length > 0) {
+        variantIds = template.selected_variant_ids;
+      } else {
+        // No selection anywhere — fetch all variants for this catalog product
+        const variants = await getCatalogProductVariants(cp.catalog_product_id);
+        if (!variants || variants.length === 0) throw new Error("No variants found for catalog product");
+        variantIds = variants.map((v: { id: number }) => v.id);
+      }
 
-      const syncVariants = selectedVariants.map((v: { id: number; retail_price?: string }) => ({
-        variant_id: v.id,
-        retail_price: cp.default_price ?? "24.99",
-        placement,
-        fileUrl: design.url,
+      // Get placement from printfiles if not set
+      if (effectivePlacement === "front") {
+        const printfiles = await getCatalogProductPrintfiles(cp.catalog_product_id);
+        effectivePlacement = printfiles?.placements?.[0]?.placement_id ?? "front";
+      }
+
+      const syncVariants = variantIds.map((id: number) => ({
+        variant_id: id,
+        retail_price: effectivePrice,
+        placement: effectivePlacement,
+        ...(printfulFileId ? { fileId: printfulFileId } : { fileUrl: design.url }),
       }));
 
       // Create product in Printful
       const productName = `${design.name} — ${cp.catalog_product_name}`;
       const { id: printfulProductId } = await createPrintfulSyncProduct({
         name: productName,
-        thumbnail: design.url,
+        thumbnail: printfulPreviewUrl,
         variants: syncVariants,
       });
+
+      // Generate mockups asynchronously (best-effort — don't fail publish if this errors)
+      let mockupUrl = printfulPreviewUrl;
+      try {
+        const { task_key } = await createMockupTask({
+          catalogProductId: cp.catalog_product_id,
+          variantIds: variantIds.slice(0, 5),
+          fileUrl: design.url,
+          placement: effectivePlacement,
+        });
+        // Poll up to 30 seconds for mockup result
+        for (let i = 0; i < 15; i++) {
+          await new Promise((r) => setTimeout(r, 2000));
+          const result = await pollMockupTask(task_key);
+          if (result.status === "completed" && result.mockups.length > 0) {
+            mockupUrl = result.mockups[0].mockup_url;
+            break;
+          }
+          if (result.status === "failed") break;
+        }
+      } catch (mockupErr) {
+        console.warn(`[PublishJob] Mockup generation failed for ${cp.catalog_product_name}:`, mockupErr);
+      }
 
       // Save to published_products
       await db.from("published_products").insert({
@@ -158,7 +224,7 @@ async function runPublishJob(
         catalog_product_id: cp.catalog_product_id,
         printful_sync_product_id: printfulProductId,
         name: productName,
-        thumbnail_url: design.url,
+        thumbnail_url: mockupUrl,
         status: "published",
       });
 

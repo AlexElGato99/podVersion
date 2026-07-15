@@ -221,12 +221,15 @@ export async function uploadFileToPrintful(fileUrl: string, fileName: string): P
 export async function createPrintfulSyncProduct(params: {
   name: string;
   thumbnail: string;
-  variants: { variant_id: number; retail_price: string; placement: string; fileUrl: string }[];
+  variants: { variant_id: number; retail_price: string; placement: string; fileId?: number; fileUrl?: string }[];
 }): Promise<{ id: number; external_id: string | null }> {
   const syncVariants = params.variants.map((v) => ({
     variant_id: v.variant_id,
     retail_price: v.retail_price,
-    files: [{ placement: v.placement, url: v.fileUrl }],
+    files: [v.fileId
+      ? { placement: v.placement, id: v.fileId }
+      : { placement: v.placement, url: v.fileUrl }
+    ],
   }));
 
   const body = {
@@ -252,6 +255,52 @@ export async function createPrintfulSyncProduct(params: {
   const data = await res.json();
   const sp = data.result?.sync_product;
   return { id: sp?.id, external_id: sp?.external_id ?? null };
+}
+
+/**
+ * Generate mockups for a catalog product + design file (v1 mockup generator).
+ * Returns task_key for polling, or mockup URLs if already done.
+ */
+export async function createMockupTask(params: {
+  catalogProductId: number;
+  variantIds: number[];
+  fileUrl: string;
+  placement?: string;
+}): Promise<{ task_key: string }> {
+  const res = await fetch(
+    `https://api.printful.com/mockup-generator/create-task/${params.catalogProductId}`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        variant_ids: params.variantIds,
+        files: [{ placement: params.placement ?? "front", image_url: params.fileUrl }],
+        format: "jpg",
+      }),
+    }
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Mockup task error ${res.status}: ${text}`);
+  }
+  const data = await res.json();
+  return { task_key: data.result?.task_key };
+}
+
+export async function pollMockupTask(taskKey: string): Promise<{
+  status: string;
+  mockups: { placement: string; mockup_url: string; variant_ids: number[] }[];
+}> {
+  const res = await fetch(
+    `https://api.printful.com/mockup-generator/task?task_key=${taskKey}`,
+    { headers: { Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}` } }
+  );
+  if (!res.ok) throw new Error(`Mockup poll error ${res.status}`);
+  const data = await res.json();
+  return { status: data.result?.status ?? "pending", mockups: data.result?.mockups ?? [] };
 }
 
 /**
