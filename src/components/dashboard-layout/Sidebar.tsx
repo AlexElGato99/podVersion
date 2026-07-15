@@ -31,6 +31,12 @@ import {
   Map,
   PanelLeft,
   LayoutGrid,
+  Package,
+  LayoutTemplate,
+  ImageIcon,
+  FolderOpen,
+  Grid3X3,
+  Rocket,
 } from "lucide-react";
 import { Logo } from "@/components/ui/DashboardLogo";
 import { cn } from "@/lib/utils";
@@ -64,6 +70,7 @@ const navSections: NavSection[] = [
     title: "Frontend",
     items: [
       { label: "Hero Section", href: "/dashboard/hero", icon: Image },
+      { label: "Homepage Sections", href: "/dashboard/homepage-sections", icon: LayoutTemplate },
       { label: "Categories", href: "/dashboard/categories", icon: LayoutGrid },
       { label: "Quick Statistics", href: "/dashboard/quick-stats", icon: Sliders },
       { label: "Sliders", href: "/dashboard/sliders", icon: Layers },
@@ -90,8 +97,18 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    title: "Publishing",
+    items: [
+      { label: "Designs", href: "/dashboard/designs", icon: ImageIcon },
+      { label: "Collections", href: "/dashboard/collections", icon: FolderOpen },
+      { label: "Catalog", href: "/dashboard/catalog", icon: Grid3X3 },
+      { label: "Publish Engine", href: "/dashboard/publish", icon: Rocket },
+    ],
+  },
+  {
     title: "Subscriptions",
     items: [
+      { label: "Products", href: "/dashboard/products", icon: Package },
       { label: "Users", href: "/dashboard/users", icon: Users },
       {
         label: "Orders",

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getProducts } from "@/lib/printful";
+import { getProducts, getProductImageForColor } from "@/lib/printful";
 import { createClient } from "@/lib/supabase/server";
 import ShopClient from "./ShopClient";
 
@@ -24,6 +24,7 @@ export const metadata = {
 async function ShopWrapper() {
   let products: Awaited<ReturnType<typeof getProducts>> = [];
   let categories: string[] = [];
+  let productSettingsMap: Record<number, { custom_mockup_url?: string; primary_color?: string; badge?: string; is_hidden?: boolean }> = {};
   try {
     products = await getProducts();
   } catch {
@@ -31,14 +32,44 @@ async function ShopWrapper() {
   }
   try {
     const supabase = await createClient();
-    const { data } = await supabase.from("category_settings").select("categories").eq("id", 1).single();
-    if (data?.categories?.length) {
-      categories = (data.categories as { name: string }[]).map((c) => c.name);
+    const [catData, settingsData] = await Promise.all([
+      supabase.from("category_settings").select("categories").eq("id", 1).single(),
+      supabase.from("product_settings").select("id,custom_mockup_url,primary_color,badge,is_hidden"),
+    ]);
+    if (catData.data?.categories?.length) {
+      categories = (catData.data.categories as { name: string }[]).map((c) => c.name);
+    }
+    for (const row of settingsData.data ?? []) {
+      productSettingsMap[row.id] = row;
     }
   } catch {
     // empty
   }
-  return <ShopClient products={products} categoryOptions={categories} />;
+
+  // For products that have a primary_color but no custom_mockup_url, resolve the shirt image
+  const resolvedImages = await Promise.all(
+    products.map(async (p) => {
+      const setting = productSettingsMap[p.id];
+      if (setting?.custom_mockup_url) return setting.custom_mockup_url;
+      if (setting?.primary_color) {
+        const img = await getProductImageForColor(p.id, setting.primary_color);
+        if (img) return img;
+      }
+      return null;
+    })
+  );
+
+  // Apply custom_mockup_url and filter hidden products
+  const enrichedProducts = products
+    .filter((p) => !productSettingsMap[p.id]?.is_hidden)
+    .map((p, i) => ({
+      ...p,
+      thumbnail_url: resolvedImages[i] || p.thumbnail_url,
+      best_image:    resolvedImages[i] || p.best_image,
+      badge:         productSettingsMap[p.id]?.badge ?? undefined,
+    }));
+
+  return <ShopClient products={enrichedProducts} categoryOptions={categories} />;
 }
 
 export default function ShopPage() {

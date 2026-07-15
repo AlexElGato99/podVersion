@@ -53,7 +53,14 @@ export default function ProductCard({
 
         {/* Badge */}
         {badge && (
-          <span className="absolute left-2.5 top-2.5 rounded-full bg-brand-600 px-2.5 py-0.5 text-[11px] font-semibold text-white shadow">
+          <span className={cn(
+            "absolute left-2.5 top-2.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white shadow",
+            badge === "Bestseller" ? "bg-brand-600" :
+            badge === "New"        ? "bg-teal-500" :
+            badge === "Popular"    ? "bg-blue-500" :
+            badge === "Sale"       ? "bg-red-500" :
+            "bg-brand-600"
+          )}>
             {badge}
           </span>
         )}

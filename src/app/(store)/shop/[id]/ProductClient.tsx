@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -21,8 +21,21 @@ import { useCart } from "@/context/CartContext";
 import { formatPrice, cn } from "@/lib/utils";
 import type { PrintfulProductDetail } from "@/lib/printful";
 
+interface ProductSetting {
+  id: number;
+  custom_name?: string;
+  custom_description?: string;
+  specs?: string[];
+  custom_mockup_url?: string;
+  primary_color?: string;
+  badge?: string;
+  is_featured?: boolean;
+  is_hidden?: boolean;
+}
+
 interface ProductClientProps {
   product: PrintfulProductDetail;
+  productSetting?: ProductSetting | null;
 }
 
 const LIGHT_COLORS = new Set([
@@ -42,9 +55,25 @@ function isLightColor(hex: string, name: string): boolean {
   return (r * 299 + g * 587 + b * 114) / 1000 > 160;
 }
 
-export default function ProductClient({ product }: ProductClientProps) {
+export default function ProductClient({ product, productSetting }: ProductClientProps) {
   const { sync_product, sync_variants } = product;
   const { addItem } = useCart();
+
+  // Merge Supabase overrides
+  const displayName        = productSetting?.custom_name || sync_product.name;
+  const displayDescription = productSetting?.custom_description || sync_product.description;
+  const customMockup       = productSetting?.custom_mockup_url ?? null;
+
+  const SPEC_DEFAULTS = [
+    "100% ring-spun cotton — soft, breathable & pre-shrunk",
+    "Direct-to-garment (DTG) print — vibrant, fade-resistant colors",
+    "Unisex relaxed fit — true to size",
+    "Machine wash cold inside-out, tumble dry low, no bleach",
+    "Printed & fulfilled by Printful — ships within 3–5 business days",
+  ];
+  const specs: string[] = (productSetting?.specs && productSetting.specs.length > 0)
+    ? productSetting.specs
+    : SPEC_DEFAULTS;
 
   // Map: color → { hexCode, mockupImage, shirtImage }
   // mockupImage = real Printful-generated preview with your design (only some colors)
@@ -111,8 +140,32 @@ export default function ProductClient({ product }: ProductClientProps) {
   const hasColors = colors.length > 0;
   const hasSizes  = sizes.length > 0;
 
-  const [selectedColor, setSelectedColor] = useState<string>(colors[0] ?? "");
+  // If admin set a primary_color in dashboard, find the matching color name from variants
+  const defaultColor = useMemo(() => {
+    const saved = productSetting?.primary_color;
+    if (saved && colors.length > 0) {
+      const hex = saved.toLowerCase().replace(/\s/g, "");
+      // 1. Exact color_code match
+      const byHex = sync_variants.find(
+        (v) => v.color && v.color_code && v.color_code.toLowerCase().replace(/\s/g, "") === hex
+      );
+      if (byHex?.color && colors.includes(byHex.color)) return byHex.color;
+      // 2. color_code2 match (for two-tone variants)
+      const byHex2 = sync_variants.find(
+        (v) => v.color && v.color_code2 && v.color_code2.toLowerCase().replace(/\s/g, "") === hex
+      );
+      if (byHex2?.color && colors.includes(byHex2.color)) return byHex2.color;
+    }
+    return colors[0] ?? "";
+  }, [colors, productSetting, sync_variants]);
+
+  const [selectedColor, setSelectedColor] = useState<string>(defaultColor);
   const [selectedSize,  setSelectedSize]  = useState<string>(sizes[0] ?? "");
+
+  // Keep selectedColor in sync if productSetting loads after mount
+  useEffect(() => {
+    if (defaultColor) setSelectedColor(defaultColor);
+  }, [defaultColor]);
 
   const selectedVariant = useMemo(() => {
     if (!hasColors && !hasSizes) return sync_variants[0];
@@ -144,7 +197,7 @@ export default function ProductClient({ product }: ProductClientProps) {
     addItem({
       variantId: selectedVariant.id,
       productId: selectedVariant.product_id,
-      name: `${sync_product.name} — ${selectedVariant.name}`,
+      name: `${displayName} — ${selectedVariant.name}`,
       price: parseFloat(selectedVariant.retail_price),
       currency: selectedVariant.currency,
       imageUrl: displayImage,
@@ -165,7 +218,7 @@ export default function ProductClient({ product }: ProductClientProps) {
           <ChevronDown className="h-3 w-3 -rotate-90 shrink-0" />
           <Link href="/shop" className="hover:text-zinc-700 transition-colors">Shop</Link>
           <ChevronDown className="h-3 w-3 -rotate-90 shrink-0" />
-          <span className="text-zinc-700 font-medium truncate max-w-[220px]">{sync_product.name}</span>
+              <span className="truncate max-w-[220px]">{displayName}</span>
         </nav>
 
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 xl:gap-16">
@@ -175,12 +228,12 @@ export default function ProductClient({ product }: ProductClientProps) {
               {(() => {
                 const cd = colorDataMap.get(selectedColor);
                 // Priority: real design mockup → catalog shirt in correct color → thumbnail → placeholder
-                const src = cd?.mockupImage ?? cd?.shirtImage ?? sync_product.thumbnail_url ?? "/placeholder-product.jpg";
+                const src = customMockup ?? cd?.mockupImage ?? cd?.shirtImage ?? sync_product.thumbnail_url ?? "/placeholder-product.jpg";
                 return (
                   <>
                     <Image
                       src={src}
-                      alt={`${sync_product.name} in ${selectedColor}`}
+                      alt={`${displayName} in ${selectedColor}`}
                       fill
                       sizes="(max-width: 1024px) 100vw, 50vw"
                       className="object-cover transition-opacity duration-300"
@@ -239,7 +292,7 @@ export default function ProductClient({ product }: ProductClientProps) {
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-brand-600 mb-1">PrintDrop Original</p>
               <h1 className="text-3xl font-extrabold leading-tight text-zinc-900 sm:text-[34px]">
-                {sync_product.name}
+                {displayName}
               </h1>
               <div className="mt-3 flex items-center gap-3 flex-wrap">
                 <div className="flex items-center gap-0.5">
@@ -262,21 +315,15 @@ export default function ProductClient({ product }: ProductClientProps) {
               <span className="text-xs font-bold text-brand-600 bg-brand-50 rounded-full px-2 py-0.5">Save 17%</span>
             </div>
 
-            {sync_product.description && (
+            {displayDescription && (
               <p className="text-sm text-zinc-600 leading-relaxed border-l-2 border-zinc-200 pl-3">
-                {sync_product.description}
+                {displayDescription}
               </p>
             )}
 
             {/* Product Specs — indexed by Google for long-tail product queries */}
             <ul className="space-y-2">
-              {[
-                "100% ring-spun cotton — soft, breathable & pre-shrunk",
-                "Direct-to-garment (DTG) print — vibrant, fade-resistant colors",
-                "Unisex relaxed fit — true to size (see size guide above)",
-                "Care: machine wash cold inside-out, tumble dry low, no bleach",
-                "Printed & fulfilled by Printful — ships within 3–5 business days",
-              ].map((spec) => (
+              {specs.map((spec) => (
                 <li key={spec} className="flex items-start gap-2 text-sm text-zinc-600">
                   <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" strokeWidth={2.5} />
                   {spec}
@@ -465,7 +512,7 @@ export default function ProductClient({ product }: ProductClientProps) {
         </div>
 
         {/* FAQ Section — structured data for Google rich results */}
-        <FaqSection productName={sync_product.name} />
+        <FaqSection productName={displayName} />
       </div>
     </div>
   );

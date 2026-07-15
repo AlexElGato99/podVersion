@@ -6,8 +6,14 @@ import {
   ShieldCheck,
   RotateCcw,
   Zap,
+  Shirt,
+  Wind,
+  Coffee,
+  Sticker,
+  HardHat,
+  ShoppingBag,
 } from "lucide-react";
-import { getProducts, getCatalogCategories } from "@/lib/printful";
+import { getProducts, getCatalogCategories, getProductImageForColor } from "@/lib/printful";
 import ProductCard from "@/components/ui/ProductCard";
 import { productSlug } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
@@ -156,6 +162,101 @@ async function getFeaturedProducts() {
   }
 }
 
+/* ── Categorize products by name keywords ──────────────────────── */
+type CategoryKey = "tshirts" | "hoodies" | "mugs" | "stickers" | "caps" | "other";
+
+interface ProductCategory {
+  key: CategoryKey;
+  label: string;
+  subtitle: string;
+  shopSlug: string;
+  icon: React.ComponentType<{ className?: string }>;
+  bg: string;
+  accent: string;
+  // admin-overridable
+  isVisible?: boolean;
+  maxProducts?: number;
+  sortOrder?: number;
+  sectionBg?: "white" | "zinc";
+  badgeFirst?: string;
+  badgeSecond?: string;
+}
+
+interface HomepageSectionRow {
+  key: string;
+  label?: string;
+  subtitle?: string;
+  shop_slug?: string;
+  is_visible?: boolean;
+  max_products?: number;
+  sort_order?: number;
+  bg?: string;
+  badge_first?: string;
+  badge_second?: string;
+}
+
+const PRODUCT_CATEGORIES: ProductCategory[] = [
+  { key: "tshirts",  label: "Custom T-Shirts & Graphic Tees",     subtitle: "Premium unisex tees with vibrant DTG prints",           shopSlug: "t-shirt",   icon: Shirt,       bg: "bg-orange-50",  accent: "text-orange-600", sortOrder: 0 },
+  { key: "hoodies",  label: "Hoodies & Sweatshirts",               subtitle: "Cozy custom hoodies — perfect for every season",        shopSlug: "hoodie",    icon: Wind,        bg: "bg-blue-50",    accent: "text-blue-600",   sortOrder: 1 },
+  { key: "mugs",     label: "Custom Mugs & Drinkware",             subtitle: "Start your morning with your favourite design",          shopSlug: "mug",       icon: Coffee,      bg: "bg-amber-50",   accent: "text-amber-600",  sortOrder: 2 },
+  { key: "stickers", label: "Stickers & Decals",                   subtitle: "Waterproof, fade-resistant custom stickers",            shopSlug: "sticker",   icon: Sticker,     bg: "bg-green-50",   accent: "text-green-600",  sortOrder: 3 },
+  { key: "caps",     label: "Caps & Hats",                         subtitle: "Structured & unstructured caps for every style",        shopSlug: "cap",       icon: HardHat,     bg: "bg-purple-50",  accent: "text-purple-600", sortOrder: 4 },
+  { key: "other",    label: "Accessories & More",                  subtitle: "Posters, phone cases, tote bags & beyond",             shopSlug: "",          icon: ShoppingBag, bg: "bg-zinc-50",    accent: "text-zinc-600",   sortOrder: 5 },
+];
+
+async function getHomepageSections(): Promise<ProductCategory[]> {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("homepage_sections")
+      .select("*")
+      .order("sort_order", { ascending: true });
+    if (data && data.length > 0) {
+      return PRODUCT_CATEGORIES.map((def) => {
+        const saved = data.find((s: HomepageSectionRow) => s.key === def.key);
+        if (!saved) return def;
+        return {
+          ...def,
+          label:       saved.label        ?? def.label,
+          subtitle:    saved.subtitle     ?? def.subtitle,
+          shopSlug:    saved.shop_slug    ?? def.shopSlug,
+          isVisible:   saved.is_visible   !== undefined ? saved.is_visible : true,
+          maxProducts: saved.max_products ?? 6,
+          sortOrder:   saved.sort_order   ?? def.sortOrder,
+          sectionBg:   (saved.bg as "white" | "zinc") ?? undefined,
+          badgeFirst:  saved.badge_first  ?? undefined,
+          badgeSecond: saved.badge_second ?? undefined,
+        };
+      }).sort((a, b) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99));
+    }
+  } catch { /* fall through */ }
+  return PRODUCT_CATEGORIES;
+}
+
+function classifyProduct(name: string): CategoryKey {
+  const n = name.toLowerCase();
+  if (/t-shirt|tee|jersey|tank|polo|unisex\s+(organic|staple|premium)\s+\w*\s*(t-shirt|tee)/i.test(name)) return "tshirts";
+  if (/hoodie|sweatshirt|pullover|fleece|crewneck/i.test(name)) return "hoodies";
+  if (/mug|cup|tumbler|bottle|drinkware/i.test(name)) return "mugs";
+  if (/sticker|decal/i.test(name)) return "stickers";
+  if (/cap|hat|beanie|snapback|dad hat/i.test(name)) return "caps";
+  // extra t-shirt patterns
+  if (n.includes("shirt")) return "tshirts";
+  return "other";
+}
+
+async function getProductSettingsMap(): Promise<Record<number, { custom_mockup_url?: string; primary_color?: string; badge?: string; is_hidden?: boolean }>> {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("product_settings").select("id,custom_mockup_url,primary_color,badge,is_hidden");
+    const map: Record<number, { custom_mockup_url?: string; primary_color?: string; badge?: string; is_hidden?: boolean }> = {};
+    for (const row of data ?? []) map[row.id] = row;
+    return map;
+  } catch {
+    return {};
+  }
+}
+
 async function getPrintfulCategories() {
   try {
     const all = await getCatalogCategories();
@@ -192,9 +293,44 @@ const features = [
 ];
 
 export default async function HomePage() {
-  const [products, hero, categoryData] = await Promise.all([
-    getFeaturedProducts(), getHeroSettings(), getCategorySettings()
+  const [products, hero, categoryData, productSettingsMap, sectionSettings] = await Promise.all([
+    getFeaturedProducts(), getHeroSettings(), getCategorySettings(), getProductSettingsMap(), getHomepageSections()
   ]);
+
+  // Resolve shirt images for products with primary_color but no custom_mockup_url
+  const resolvedImages = await Promise.all(
+    products.map(async (p) => {
+      const setting = productSettingsMap[p.id];
+      if (setting?.custom_mockup_url) return setting.custom_mockup_url;
+      if (setting?.primary_color) {
+        const img = await getProductImageForColor(p.id, setting.primary_color);
+        if (img) return img;
+      }
+      return null;
+    })
+  );
+
+  const allProducts = products
+    .filter((p) => !productSettingsMap[p.id]?.is_hidden)
+    .map((p, i) => ({
+      ...p,
+      thumbnail_url: resolvedImages[i] || p.thumbnail_url,
+      best_image:    resolvedImages[i] || p.best_image,
+      adminBadge:    productSettingsMap[p.id]?.badge,
+      category:      classifyProduct(p.name),
+    }));
+
+  // Group by category, max 6 per group (most recent first — API returns newest first)
+  const byCategory: Record<CategoryKey, typeof allProducts> = {
+    tshirts: [], hoodies: [], mugs: [], stickers: [], caps: [], other: [],
+  };
+  for (const p of allProducts) {
+    const cat = p.category as CategoryKey;
+    if (byCategory[cat].length < 6) byCategory[cat].push(p);
+  }
+
+  // Keep the first 8 for the JSON-LD ItemList (all products combined)
+  const featuredProducts = allProducts.slice(0, 8);
 
   return (
     <div className="overflow-x-hidden bg-white">
@@ -344,69 +480,86 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Featured Products */}
-      <section className="py-14 bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          {/* ItemList JSON-LD — enables rich results for product grid in Google Search */}
-          {products.length > 0 && (
-            <script
-              type="application/ld+json"
-              dangerouslySetInnerHTML={{
-                __html: JSON.stringify({
-                  "@context": "https://schema.org",
-                  "@type": "ItemList",
-                  "name": "Best-Selling Custom Print-on-Demand Products",
-                  "description": "Top custom graphic tees, hoodies, and accessories printed on demand by PrintDrop.",
-                  "url": "https://printdrop.com",
-                  "itemListElement": products.map((p, i) => ({
-                    "@type": "ListItem",
-                    "position": i + 1,
-                    "url": `https://printdrop.com/shop/${productSlug(p.name, p.id)}`,
-                    "name": p.name,
-                  })),
-                }),
-              }}
-            />
-          )}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-xl font-bold text-zinc-900">Best-Selling Custom Graphic Tees &amp; Apparel</h2>
-              <p className="mt-1 text-sm text-zinc-500">Handpicked favorites — custom print-on-demand, shipped to your door</p>
-            </div>
-            <Link href="/shop" className="text-sm font-medium text-brand-600 hover:text-brand-700 hover:underline hidden sm:block">
-              See all
-            </Link>
-          </div>
+      {/* ── Category Product Sections ── */}
+      {/* ItemList JSON-LD for all products */}
+      {featuredProducts.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "ItemList",
+              "name": "Best-Selling Custom Print-on-Demand Products",
+              "description": "Top custom graphic tees, hoodies, mugs, stickers and accessories printed on demand by PrintDrop.",
+              "url": "https://printdrop.com",
+              "itemListElement": featuredProducts.map((p, i) => ({
+                "@type": "ListItem",
+                "position": i + 1,
+                "url": `https://printdrop.com/shop/${productSlug(p.name, p.id)}`,
+                "name": p.name,
+              })),
+            }),
+          }}
+        />
+      )}
 
-          {products.length > 0 ? (
-            <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
-              {products.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  id={product.id}
-                  name={product.name}
-                  price={product.starting_price ? parseFloat(product.starting_price) : 0}
-                  imageUrl={product.best_image || product.thumbnail_url}
-                  freeShipping={product.id % 2 === 0}
-                  badge={product.id % 4 === 0 ? "Bestseller" : undefined}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="aspect-square rounded-2xl animate-pulse bg-zinc-100" />
-              ))}
-            </div>
-          )}
+      {sectionSettings.map((cat, sectionIdx) => {
+        if (cat.isVisible === false) return null;
+        const catProducts = byCategory[cat.key as CategoryKey].slice(0, cat.maxProducts ?? 6);
+        if (catProducts.length === 0) return null;
+        const Icon = cat.icon;
+        const bgClass = cat.sectionBg === "zinc" ? "bg-zinc-50/60" : cat.sectionBg === "white" ? "bg-white" : sectionIdx % 2 === 0 ? "bg-white" : "bg-zinc-50/60";
+        return (
+          <section key={cat.key} className={`py-14 ${bgClass}`}>
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${cat.bg}`}>
+                    <Icon className={`h-5 w-5 ${cat.accent}`} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-zinc-900">{cat.label}</h2>
+                    <p className="mt-0.5 text-sm text-zinc-500">{cat.subtitle}</p>
+                  </div>
+                </div>
+                <Link
+                  href={cat.shopSlug ? `/shop?category=${cat.shopSlug}` : "/shop"}
+                  className="hidden sm:inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700 hover:underline"
+                >
+                  See all <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
 
-          <div className="mt-8 text-center sm:hidden">
-            <Link href="/shop" className="text-sm font-semibold text-brand-600 hover:underline">
-              See all products →
-            </Link>
-          </div>
-        </div>
-      </section>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-6">
+                {catProducts.map((product, i) => (
+                  <ProductCard
+                    key={product.id}
+                    id={product.id}
+                    name={product.name}
+                    price={product.starting_price ? parseFloat(product.starting_price) : 0}
+                    imageUrl={product.best_image || product.thumbnail_url}
+                    freeShipping={product.id % 3 === 0}
+                    badge={
+                      product.adminBadge ||
+                      (i === 0 && cat.badgeFirst ? cat.badgeFirst :
+                       i === 1 && cat.badgeSecond ? cat.badgeSecond : undefined)
+                    }
+                  />
+                ))}
+              </div>
+
+              <div className="mt-6 text-center sm:hidden">
+                <Link
+                  href={cat.shopSlug ? `/shop?category=${cat.shopSlug}` : "/shop"}
+                  className="text-sm font-semibold text-brand-600 hover:underline"
+                >
+                  See all {cat.label} →
+                </Link>
+              </div>
+            </div>
+          </section>
+        );
+      })}
 
       {/* Features / Trust */}
       <section className="py-12 bg-zinc-50 border-t border-zinc-100">

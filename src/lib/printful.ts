@@ -152,3 +152,150 @@ export async function getCatalogCategories() {
   const data = await printfulFetch("/categories");
   return data.result?.categories ?? [];
 }
+
+/**
+ * Browse Printful v2 catalog products with pagination.
+ */
+export async function getCatalogProducts(params?: { limit?: number; offset?: number; category_id?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.limit)       qs.set("limit",       String(params.limit));
+  if (params?.offset)      qs.set("offset",      String(params.offset));
+  if (params?.category_id) qs.set("category_id", String(params.category_id));
+  const url = `/v2/catalog-products?${qs.toString()}`;
+  const res = await fetch(`https://api.printful.com${url}`, {
+    headers: { Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}` },
+    next: { revalidate: 3600 },
+  });
+  if (!res.ok) throw new Error(`Printful catalog error ${res.status}`);
+  const data = await res.json();
+  return { products: data.data ?? [], paging: data.paging ?? {} };
+}
+
+/**
+ * Get variants for a catalog product (v2).
+ */
+export async function getCatalogProductVariants(catalogProductId: number) {
+  const res = await fetch(`https://api.printful.com/v2/catalog-products/${catalogProductId}/catalog-variants?limit=100`, {
+    headers: { Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}` },
+    next: { revalidate: 3600 },
+  });
+  if (!res.ok) throw new Error(`Printful variants error ${res.status}`);
+  const data = await res.json();
+  return data.data ?? [];
+}
+
+/**
+ * Get printfile (placement) info for a catalog product (v2).
+ */
+export async function getCatalogProductPrintfiles(catalogProductId: number) {
+  const res = await fetch(`https://api.printful.com/v2/catalog-products/${catalogProductId}/printfiles`, {
+    headers: { Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}` },
+    next: { revalidate: 3600 },
+  });
+  if (!res.ok) return { placements: [] };
+  const data = await res.json();
+  return data.data ?? { placements: [] };
+}
+
+/**
+ * Upload a file URL to Printful's file library (returns Printful file ID).
+ */
+export async function uploadFileToPrintful(fileUrl: string, fileName: string): Promise<{ id: number; preview_url: string }> {
+  const res = await fetch("https://api.printful.com/files", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ type: "default", url: fileUrl, filename: fileName, visible: true }),
+  });
+  if (!res.ok) throw new Error(`Printful file upload error ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data.result;
+}
+
+/**
+ * Create a sync product in Printful (v1 API — most compatible).
+ * variants: array of { variant_id, retail_price, placement, fileUrl }
+ */
+export async function createPrintfulSyncProduct(params: {
+  name: string;
+  thumbnail: string;
+  variants: { variant_id: number; retail_price: string; placement: string; fileUrl: string }[];
+}): Promise<{ id: number; external_id: string | null }> {
+  const syncVariants = params.variants.map((v) => ({
+    variant_id: v.variant_id,
+    retail_price: v.retail_price,
+    files: [{ placement: v.placement, url: v.fileUrl }],
+  }));
+
+  const body = {
+    sync_product: { name: params.name, thumbnail: params.thumbnail },
+    sync_variants: syncVariants,
+  };
+
+  const res = await fetch("https://api.printful.com/store/products", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}`,
+      "X-PF-Store-Id": process.env.PRINTFUL_STORE_ID ?? "",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Printful create product error ${res.status}: ${errText}`);
+  }
+
+  const data = await res.json();
+  const sp = data.result?.sync_product;
+  return { id: sp?.id, external_id: sp?.external_id ?? null };
+}
+
+/**
+ * Given a product id and a target hex color (e.g. "#721d37"),
+ * returns the shirt image URL for the variant whose color_code matches.
+ * Falls back to null if no match.
+ */
+export async function getProductImageForColor(productId: number, hexColor: string): Promise<string | null> {
+  try {
+    const data = await printfulFetch(`/store/products/${productId}`);
+    const variants: {
+      name: string;
+      files?: { type: string; preview_url?: string }[];
+      product?: { variant_id: number; image: string };
+    }[] = data.result?.sync_variants ?? [];
+
+    // Collect unique color → variantId + shirtUrl
+    const seen = new Map<number, { shirtUrl: string; mockupUrl: string | null }>();
+    for (const v of variants) {
+      const vid = v.product?.variant_id;
+      if (!vid || seen.has(vid)) continue;
+      const mockup = v.files?.find((f) => f.type === "preview" && f.preview_url)?.preview_url ?? null;
+      seen.set(vid, { shirtUrl: v.product!.image, mockupUrl: mockup });
+    }
+
+    // Fetch hex codes in parallel
+    const needle = hexColor.toLowerCase().replace(/\s/g, "");
+    const results = await Promise.allSettled(
+      Array.from(seen.entries()).map(async ([vid, imgs]) => {
+        const r = await printfulFetch(`/catalog/variants/${vid}`);
+        const codes: string[] = r.result?.variant?.color?.color_codes ?? [];
+        const match = codes.some((c: string) => c.toLowerCase().replace(/\s/g, "") === needle);
+        return match ? imgs : null;
+      })
+    );
+
+    for (const r of results) {
+      if (r.status === "fulfilled" && r.value) {
+        // Prefer design mockup, fall back to plain shirt image
+        return r.value.mockupUrl ?? r.value.shirtUrl;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}

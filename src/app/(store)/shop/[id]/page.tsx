@@ -3,6 +3,25 @@ import { getProduct } from "@/lib/printful";
 import ProductClient from "./ProductClient";
 import type { Metadata } from "next";
 import { productIdFromSlug } from "@/lib/utils";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+async function getProductSetting(productId: number) {
+  try {
+    const { data } = await supabaseAdmin
+      .from("product_settings")
+      .select("*")
+      .eq("id", productId)
+      .single();
+    return data ?? null;
+  } catch {
+    return null;
+  }
+}
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -44,8 +63,11 @@ export default async function ProductPage({ params }: Props) {
   const { id } = await params;
   const productId = productIdFromSlug(id);
   try {
-    const product = await getProduct(productId);
-    const name = product.sync_product.name;
+    const [product, productSetting] = await Promise.all([
+      getProduct(productId),
+      getProductSetting(productId),
+    ]);
+    const name = productSetting?.custom_name || product.sync_product.name;
     const price = product.sync_variants?.[0]?.retail_price ?? "0";
     const thumb = product.sync_variants?.[0]?.files?.find(f => f.type === "preview" && f.preview_url)?.preview_url
       ?? product.sync_product.thumbnail_url;
@@ -87,7 +109,7 @@ export default async function ProductPage({ params }: Props) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
         />
-        <ProductClient product={product} />
+        <ProductClient product={product} productSetting={productSetting} />
       </>
     );
   } catch {
