@@ -1,5 +1,8 @@
 const BASE_URL = "https://api.printful.com";
 
+/** Simple sleep helper */
+export function sleep(ms: number) { return new Promise<void>((r) => setTimeout(r, ms)); }
+
 async function printfulFetch(path: string, options: RequestInit = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
@@ -237,24 +240,66 @@ export async function createPrintfulSyncProduct(params: {
     sync_variants: syncVariants,
   };
 
-  const res = await fetch("https://api.printful.com/store/products", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}`,
-      "X-PF-Store-Id": process.env.PRINTFUL_STORE_ID ?? "",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  // Retry up to 3 times on 429 (Printful asks to wait 30s)
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await fetch("https://api.printful.com/store/products", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}`,
+        "X-PF-Store-Id": process.env.PRINTFUL_STORE_ID ?? "",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Printful create product error ${res.status}: ${errText}`);
+    if (res.status === 429) {
+      if (attempt >= 3) throw new Error(`Printful create product error 429: rate limited after retries`);
+      const retryAfter = parseInt(res.headers.get("Retry-After") ?? "35", 10);
+      console.warn(`[Printful] 429 on create product — waiting ${retryAfter}s (attempt ${attempt + 1}/3)`);
+      await sleep(retryAfter * 1000);
+      continue;
+    }
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Printful create product error ${res.status}: ${errText}`);
+    }
+
+    const data = await res.json();
+    const sp = data.result?.sync_product;
+    return { id: sp?.id, external_id: sp?.external_id ?? null };
   }
 
-  const data = await res.json();
-  const sp = data.result?.sync_product;
-  return { id: sp?.id, external_id: sp?.external_id ?? null };
+  throw new Error("Printful create product: max retries exceeded");
+}
+
+/**
+ * After creating a sync product, poll until Printful has generated a preview image.
+ * Returns the preview URL or null if not ready within the timeout.
+ */
+export async function getSyncProductPreviewUrl(syncProductId: number, maxWaitMs = 30000): Promise<string | null> {
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
+    try {
+      const res = await fetch(`https://api.printful.com/store/products/${syncProductId}`, {
+        headers: {
+          Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}`,
+          "X-PF-Store-Id": process.env.PRINTFUL_STORE_ID ?? "",
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const variants: { files?: { type: string; preview_url?: string }[] }[] =
+          data.result?.sync_variants ?? [];
+        const preview = variants
+          .flatMap((v) => v.files ?? [])
+          .find((f) => f.type === "preview" && f.preview_url);
+        if (preview?.preview_url) return preview.preview_url;
+      }
+    } catch { /* ignore */ }
+    await sleep(4000);
+  }
+  return null;
 }
 
 /**

@@ -37,6 +37,8 @@ import {
   FolderOpen,
   Grid3X3,
   Rocket,
+  FileSliders,
+  Palette,
 } from "lucide-react";
 import { Logo } from "@/components/ui/DashboardLogo";
 import { cn } from "@/lib/utils";
@@ -102,6 +104,8 @@ const navSections: NavSection[] = [
       { label: "Designs", href: "/dashboard/designs", icon: ImageIcon },
       { label: "Collections", href: "/dashboard/collections", icon: FolderOpen },
       { label: "Catalog", href: "/dashboard/catalog", icon: Grid3X3 },
+      { label: "Product Templates", href: "/dashboard/templates", icon: FileSliders },
+      { label: "Mockup Presets", href: "/dashboard/mockup-presets", icon: Palette },
       { label: "Publish Engine", href: "/dashboard/publish", icon: Rocket },
     ],
   },

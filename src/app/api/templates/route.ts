@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const {
     catalog_product_id, catalog_product_name, catalog_product_image,
-    selected_variant_ids, placement, default_price, notes,
+    selected_variant_ids, placement, thumbnail_placement, default_price, notes,
   } = body;
 
   if (!catalog_product_id) {
@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
         catalog_product_image,
         selected_variant_ids: selected_variant_ids ?? [],
         placement: placement ?? "front",
+        thumbnail_placement: thumbnail_placement ?? "front",
         default_price: default_price ?? "24.99",
         notes: notes ?? "",
         updated_at: new Date().toISOString(),
@@ -58,6 +59,7 @@ export async function POST(req: NextRequest) {
         catalog_product_image,
         selected_variant_ids: selected_variant_ids ?? [],
         placement: placement ?? "front",
+        thumbnail_placement: thumbnail_placement ?? "front",
         default_price: default_price ?? "24.99",
         notes: notes ?? "",
         created_at: new Date().toISOString(),

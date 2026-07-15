@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import {
   Rocket, Loader2, CheckCircle2, XCircle, AlertCircle, Play,
-  ImageOff, FolderOpen, RefreshCw, BarChart3,
+  ImageOff, FolderOpen, RefreshCw, BarChart3, Palette,
 } from "lucide-react";
 
 interface Design {
@@ -19,6 +19,13 @@ interface Collection {
   name: string;
   description?: string;
   collection_products?: { catalog_product_id: number; catalog_product_name: string; is_enabled?: boolean }[];
+}
+
+interface MockupPreset {
+  id: string;
+  name: string;
+  description?: string;
+  products: { catalog_product_id: number; catalog_product_name: string; selected_variant_ids: number[]; placement: string; default_price: string }[];
 }
 
 interface PublishJobItem {
@@ -62,10 +69,12 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
 export default function PublishPage() {
   const [designs, setDesigns]         = useState<Design[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
+  const [presets, setPresets]         = useState<MockupPreset[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
-  const [selectedDesign, setSelectedDesign]     = useState("");
+  const [selectedDesign, setSelectedDesign]         = useState("");
   const [selectedCollection, setSelectedCollection] = useState("");
+  const [selectedPreset, setSelectedPreset]         = useState("");
 
   const [publishing, setPublishing]   = useState(false);
   const [job, setJob]                 = useState<PublishJob | null>(null);
@@ -74,13 +83,15 @@ export default function PublishPage() {
 
   const loadData = useCallback(async () => {
     setLoadingData(true);
-    const [dRes, cRes] = await Promise.all([
+    const [dRes, cRes, pRes] = await Promise.all([
       fetch("/api/designs"),
       fetch("/api/collections"),
+      fetch("/api/mockup-presets"),
     ]);
-    const [dData, cData] = await Promise.all([dRes.json(), cRes.json()]);
+    const [dData, cData, pData] = await Promise.all([dRes.json(), cRes.json(), pRes.json()]);
     setDesigns((dData.designs ?? []).filter((d: Design & { status?: string }) => d.status !== "archived"));
     setCollections(cData.collections ?? []);
+    setPresets(pData.presets ?? []);
     setLoadingData(false);
   }, []);
 
@@ -108,7 +119,11 @@ export default function PublishPage() {
       const res = await fetch("/api/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ design_id: selectedDesign, collection_id: selectedCollection }),
+        body: JSON.stringify({
+          design_id: selectedDesign,
+          collection_id: selectedCollection,
+          ...(selectedPreset ? { preset_id: selectedPreset } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Publish failed");
@@ -125,6 +140,7 @@ export default function PublishPage() {
 
   const chosenDesign     = designs.find((d) => d.id === selectedDesign);
   const chosenCollection = collections.find((c) => c.id === selectedCollection);
+  const chosenPreset     = presets.find((p) => p.id === selectedPreset);
   const enabledProducts  = (chosenCollection?.collection_products ?? []).filter((p) => p.is_enabled !== false);
 
   const progressPct = job ? Math.round(((job.completed + job.failed) / Math.max(job.total, 1)) * 100) : 0;
@@ -181,7 +197,32 @@ export default function PublishPage() {
             </div>
 
             <div style={s.card}>
-              <h2 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 20px" }}>2. Select Collection</h2>
+              <h2 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>2. Select Mockup Preset</h2>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "0 0 14px", lineHeight: 1.5 }}>
+                Optional — overrides the colors/variants defined in collections and templates.
+                Use <strong>Dark Products</strong> for light designs, <strong>Light Products</strong> for dark designs.
+              </p>
+              <select style={s.select} value={selectedPreset} onChange={(e) => setSelectedPreset(e.target.value)}>
+                <option value="">— No preset (use collection / template settings) —</option>
+                {presets.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}{p.description ? ` — ${p.description}` : ""}</option>
+                ))}
+              </select>
+              {chosenPreset && (
+                <div style={{ marginTop: "10px", padding: "10px 12px", background: "#ea580c08", border: "1px solid #ea580c30", borderRadius: "8px", fontSize: "12px", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Palette size={13} color="#ea580c" style={{ flexShrink: 0 }} />
+                  <span>{chosenPreset.products.length} product configurations will override template defaults</span>
+                </div>
+              )}
+              {presets.length === 0 && (
+                <div style={{ marginTop: "10px", padding: "10px 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: "12px", color: "var(--text-muted)" }}>
+                  No presets yet. Create one in <strong>Mockup Presets</strong> to control which colors are used per design.
+                </div>
+              )}
+            </div>
+
+            <div style={s.card}>
+              <h2 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 20px" }}>3. Select Collection</h2>
               <select style={s.select} value={selectedCollection} onChange={(e) => setSelectedCollection(e.target.value)}>
                 <option value="">— Choose a collection —</option>
                 {collections.map((c) => (

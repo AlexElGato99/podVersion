@@ -18,6 +18,9 @@ import {
   Plus,
   Trash2,
   ImageOff,
+  Images,
+  Check,
+  X,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────── */
@@ -84,6 +87,56 @@ export default function ProductsAdminPage() {
   const [savedIds, setSavedIds]           = useState<Set<number>>(new Set());
   const [productColors, setProductColors] = useState<Record<number, PrintfulColor[]>>({});
   const [loadingColors, setLoadingColors] = useState<Set<number>>(new Set());
+
+  // Mockup picker state
+  const [mockupPickerProductId, setMockupPickerProductId] = useState<number | null>(null);
+  const [mockupPreviews, setMockupPreviews]               = useState<{ url: string; label: string }[]>([]);
+  const [loadingMockups, setLoadingMockups]               = useState(false);
+  const [seedingMockups, setSeedingMockups]               = useState(false);
+  const [seedError, setSeedError]                         = useState<string | null>(null);
+  // Generated mockups (from POST seed endpoint) — placement→url
+  const [generatedMockups, setGeneratedMockups]           = useState<{ placement: string; url: string }[]>([]);
+
+  async function openMockupPicker(productId: number) {
+    setMockupPickerProductId(productId);
+    setMockupPreviews([]);
+    setGeneratedMockups([]);
+    setSeedError(null);
+    setLoadingMockups(true);
+    try {
+      const res  = await fetch(`/api/products/mockups?id=${productId}`);
+      const data = await res.json();
+      setMockupPreviews(data.previews ?? []);
+    } catch { /* keep empty */ }
+    finally { setLoadingMockups(false); }
+  }
+
+  async function seedMockups(productId: number) {
+    setSeedingMockups(true);
+    setSeedError(null);
+    setGeneratedMockups([]);
+    try {
+      const res  = await fetch("/api/products/mockups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sync_product_id: productId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setGeneratedMockups(data.mockups ?? []);
+    } catch (e) {
+      setSeedError(e instanceof Error ? e.message : "Mockup generation failed");
+    } finally {
+      setSeedingMockups(false);
+    }
+  }
+
+  function closeMockupPicker() {
+    setMockupPickerProductId(null);
+    setMockupPreviews([]);
+    setGeneratedMockups([]);
+    setSeedError(null);
+  }
 
   /* ── Fetch products from Printful API ── */
   const loadProducts = useCallback(async () => {
@@ -400,16 +453,44 @@ export default function ProductsAdminPage() {
                   </div>
                 </div>
 
-                {/* Row 2: Custom Mockup URL */}
+                {/* Row 2: Store Thumbnail Mockup Picker */}
                 <div>
-                  <label style={s.label}>Custom Mockup Image URL</label>
-                  <input
-                    style={s.input}
-                    placeholder="https://... (overrides Printful thumbnail)"
-                    value={setting.custom_mockup_url ?? ""}
-                    onChange={(e) => updateSetting(product.id, { custom_mockup_url: e.target.value })}
-                  />
-                  <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>Paste a direct image URL to use instead of the Printful mockup</p>
+                  <label style={s.label}>Store Thumbnail Image</label>
+                  <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                    {/* Current image preview */}
+                    <div style={{ width: 72, height: 72, borderRadius: "10px", overflow: "hidden", flexShrink: 0, border: "2px solid var(--border)", background: "var(--bg-tertiary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {setting.custom_mockup_url ? (
+                        <Image src={setting.custom_mockup_url} alt="current" width={72} height={72} style={{ objectFit: "cover", width: "100%", height: "100%" }} unoptimized />
+                      ) : (
+                        <ImageOff size={22} color="var(--text-muted)" />
+                      )}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", gap: "8px", marginBottom: "6px" }}>
+                        <button
+                          style={{ ...s.btn, ...s.btnPrimary, padding: "7px 14px", fontSize: "12px" }}
+                          onClick={() => openMockupPicker(product.id)}
+                        >
+                          <Images size={13} /> Browse Mockups
+                        </button>
+                        {setting.custom_mockup_url && (
+                          <button
+                            style={{ ...s.btn, background: "#ef444415", color: "#ef4444", border: "1px solid #ef444430", padding: "7px 12px", fontSize: "12px" }}
+                            onClick={() => updateSetting(product.id, { custom_mockup_url: "" })}
+                          >
+                            <X size={12} /> Clear
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        style={{ ...s.input, fontSize: "12px" }}
+                        placeholder="Or paste a direct image URL…"
+                        value={setting.custom_mockup_url ?? ""}
+                        onChange={(e) => updateSetting(product.id, { custom_mockup_url: e.target.value })}
+                      />
+                      <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>This image is shown on the shop and homepage. Browse to pick from Printful-generated mockups.</p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Row 3: Description */}
@@ -505,6 +586,120 @@ export default function ProductsAdminPage() {
           <p>No products found</p>
         </div>
       )}
+
+      {/* ── Mockup picker modal ── */}
+      {mockupPickerProductId !== null && (() => {
+        const pid     = mockupPickerProductId;
+        const setting = getSetting(pid);
+        // Combine both sources: generated mockups take precedence (shown first)
+        const allPreviews: { url: string; label: string }[] = [
+          ...generatedMockups.map((m) => ({ url: m.url, label: m.placement.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) + " (generated)" })),
+          ...mockupPreviews,
+        ];
+        return (
+          <div
+            style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}
+            onClick={closeMockupPicker}
+          >
+            <div
+              style={{ background: "var(--bg-primary)", border: "1px solid var(--border)", borderRadius: "14px", width: "100%", maxWidth: "800px", maxHeight: "92vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal header */}
+              <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: "14px" }}>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
+                    <Images size={15} style={{ verticalAlign: "middle", marginRight: 6 }} />
+                    Pick Store Thumbnail
+                  </h3>
+                  <p style={{ margin: "3px 0 0", fontSize: "12px", color: "var(--text-muted)" }}>
+                    Click any mockup to set it as the store thumbnail. Hit <strong>Seed Mockups</strong> to generate all placement views using Printful&apos;s mockup generator.
+                  </p>
+                </div>
+                <button
+                  style={{ ...s.btn, background: seedingMockups ? "#ea580c33" : "#ea580c", color: "#fff", fontSize: "12px", minWidth: 150, justifyContent: "center", opacity: seedingMockups ? 0.8 : 1 }}
+                  onClick={() => seedMockups(pid)}
+                  disabled={seedingMockups}
+                >
+                  {seedingMockups ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                  {seedingMockups ? "Generating…" : "Seed Mockups"}
+                </button>
+                <button style={{ ...s.btn, padding: "6px 10px", background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border)" }} onClick={closeMockupPicker}>
+                  <X size={14} />
+                </button>
+              </div>
+
+              {/* Seed progress / error */}
+              {seedingMockups && (
+                <div style={{ padding: "10px 20px", background: "#ea580c0a", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#ea580c" }}>
+                  <Loader2 size={13} className="animate-spin" />
+                  Calling Printful mockup generator for each placement… this may take 30–90 seconds.
+                </div>
+              )}
+              {seedError && (
+                <div style={{ padding: "10px 20px", background: "#ef444411", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#ef4444" }}>
+                  <X size={13} /> {seedError}
+                </div>
+              )}
+              {generatedMockups.length > 0 && (
+                <div style={{ padding: "8px 20px", background: "#0d948811", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#0d9488" }}>
+                  <Check size={13} /> Generated {generatedMockups.length} mockup{generatedMockups.length !== 1 ? "s" : ""} across {new Set(generatedMockups.map(m => m.placement)).size} placement{new Set(generatedMockups.map(m => m.placement)).size !== 1 ? "s" : ""}. Click one to use it.
+                </div>
+              )}
+
+              {/* Modal body */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
+                {loadingMockups && allPreviews.length === 0 ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px", color: "var(--text-muted)", gap: "10px" }}>
+                    <Loader2 size={20} className="animate-spin" /><span>Loading existing mockups…</span>
+                  </div>
+                ) : allPreviews.length === 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px", color: "var(--text-muted)", gap: "12px", textAlign: "center" }}>
+                    <ImageOff size={32} style={{ opacity: 0.35 }} />
+                    <p style={{ fontSize: "14px", fontWeight: 600, margin: 0 }}>No mockups yet</p>
+                    <p style={{ fontSize: "12px", margin: 0, maxWidth: 380, lineHeight: 1.6 }}>
+                      Click <strong>Seed Mockups</strong> above to generate high-quality product mockups for every print placement using Printful&apos;s mockup generator. This uses the design file that was uploaded when publishing.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(155px, 1fr))", gap: "12px" }}>
+                    {allPreviews.map((m, i) => {
+                      const isSelected = setting.custom_mockup_url === m.url;
+                      const isGenerated = m.label.endsWith("(generated)");
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            updateSetting(pid, { custom_mockup_url: m.url });
+                            closeMockupPicker();
+                          }}
+                          style={{
+                            position: "relative", border: `2px solid ${isSelected ? "#ea580c" : isGenerated ? "#0d948866" : "var(--border)"}`,
+                            borderRadius: "10px", overflow: "hidden", cursor: "pointer",
+                            background: "var(--bg-secondary)", padding: 0,
+                            outline: isSelected ? "3px solid #ea580c44" : "none",
+                            transition: "border-color 0.15s",
+                          }}
+                        >
+                          <Image src={m.url} alt={m.label} width={160} height={160} style={{ width: "100%", height: "auto", display: "block", aspectRatio: "1", objectFit: "cover" }} unoptimized />
+                          <div style={{ padding: "6px 8px", background: isGenerated ? "#0d948810" : "var(--bg-primary)", borderTop: "1px solid var(--border)" }}>
+                            <p style={{ margin: 0, fontSize: "11px", color: isGenerated ? "#0d9488" : "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: isGenerated ? 600 : 400 }}>{m.label}</p>
+                          </div>
+                          {isSelected && (
+                            <div style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: "50%", background: "#ea580c", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <Check size={12} color="#fff" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

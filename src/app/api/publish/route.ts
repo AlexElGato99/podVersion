@@ -7,6 +7,8 @@ import {
   uploadFileToPrintful,
   createMockupTask,
   pollMockupTask,
+  getSyncProductPreviewUrl,
+  sleep,
 } from "@/lib/printful";
 
 const db = createClient(
@@ -32,7 +34,7 @@ export async function GET(req: NextRequest) {
 // POST /api/publish — start a publish job
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { design_id, collection_id } = body;
+  const { design_id, collection_id, preset_id } = body;
 
   if (!design_id || !collection_id) {
     return NextResponse.json({ error: "design_id and collection_id required" }, { status: 400 });
@@ -88,9 +90,20 @@ export async function POST(req: NextRequest) {
     }))
   );
 
+  // Load mockup preset (optional) — overrides template/collection variant selections
+  let presetProducts: { catalog_product_id: number; selected_variant_ids: number[]; placement: string; default_price: string }[] = [];
+  if (preset_id) {
+    const { data: preset } = await db
+      .from("mockup_presets")
+      .select("products")
+      .eq("id", preset_id)
+      .single();
+    presetProducts = preset?.products ?? [];
+  }
+
   // Run publishing in background (fire-and-forget from Next.js perspective)
   // We return jobId immediately, then the background loop runs
-  runPublishJob(job.id, design, collectionProducts).catch(console.error);
+  runPublishJob(job.id, design, collectionProducts, presetProducts).catch(console.error);
 
   return NextResponse.json({ jobId: job.id });
 }
@@ -98,18 +111,24 @@ export async function POST(req: NextRequest) {
 async function runPublishJob(
   jobId: string,
   design: { id: string; name: string; url: string; tags?: string },
-  collectionProducts: { catalog_product_id: number; catalog_product_name: string; placement?: string; default_price?: string; selected_variant_ids?: number[] }[]
+  collectionProducts: { catalog_product_id: number; catalog_product_name: string; placement?: string; default_price?: string; selected_variant_ids?: number[] }[],
+  presetProducts: { catalog_product_id: number; selected_variant_ids: number[]; placement: string; default_price: string }[] = []
 ) {
   let completed = 0;
   let failed = 0;
 
+  // Build preset map (highest priority for variant/placement overrides)
+  const presetMap = new Map(
+    presetProducts.map((p) => [p.catalog_product_id, p])
+  );
+
   // Load saved product templates to use as defaults
   const { data: templates } = await db
     .from("product_templates")
-    .select("catalog_product_id, selected_variant_ids, placement, default_price")
+    .select("catalog_product_id, selected_variant_ids, placement, default_price, thumbnail_placement")
     .in("catalog_product_id", collectionProducts.map((cp) => cp.catalog_product_id));
   const templateMap = new Map(
-    (templates ?? []).map((t: { catalog_product_id: number; selected_variant_ids: number[]; placement: string; default_price: string }) =>
+    (templates ?? []).map((t: { catalog_product_id: number; selected_variant_ids: number[]; placement: string; default_price: string; thumbnail_placement?: string }) =>
       [t.catalog_product_id, t]
     )
   );
@@ -156,14 +175,19 @@ async function runPublishJob(
 
       // Determine which variant IDs to use
       // Priority: collection product selection > saved template > all variants
-      const template = templateMap.get(cp.catalog_product_id) as { selected_variant_ids?: number[]; placement?: string; default_price?: string } | undefined;
-      const cpAny = cp as { selected_variant_ids?: number[] };
+      const preset   = presetMap.get(cp.catalog_product_id) as { selected_variant_ids?: number[]; placement?: string; default_price?: string } | undefined;
+      const template = templateMap.get(cp.catalog_product_id) as { selected_variant_ids?: number[]; placement?: string; default_price?: string; thumbnail_placement?: string } | undefined;
+      const cpAny    = cp as { selected_variant_ids?: number[] };
 
       let variantIds: number[];
-      let effectivePlacement = cp.placement ?? template?.placement ?? "front";
-      let effectivePrice     = cp.default_price ?? template?.default_price ?? "24.99";
+      let effectivePlacement   = preset?.placement ?? cp.placement ?? template?.placement ?? "front";
+      let effectivePrice       = preset?.default_price ?? cp.default_price ?? template?.default_price ?? "24.99";
+      const thumbnailPlacement = template?.thumbnail_placement ?? effectivePlacement;
 
-      if (cpAny.selected_variant_ids && cpAny.selected_variant_ids.length > 0) {
+      // Priority: preset > collection product selection > saved template > all variants
+      if (preset?.selected_variant_ids && preset.selected_variant_ids.length > 0) {
+        variantIds = preset.selected_variant_ids;
+      } else if (cpAny.selected_variant_ids && cpAny.selected_variant_ids.length > 0) {
         variantIds = cpAny.selected_variant_ids;
       } else if (template?.selected_variant_ids && template.selected_variant_ids.length > 0) {
         variantIds = template.selected_variant_ids;
@@ -195,21 +219,23 @@ async function runPublishJob(
         variants: syncVariants,
       });
 
-      // Generate mockups asynchronously (best-effort — don't fail publish if this errors)
-      let mockupUrl = printfulPreviewUrl;
+      // Generate mockup & get real product preview thumbnail
+      // Step 1: try mockup generator (gives the best design-on-product image)
+      let mockupUrl: string | null = null;
       try {
         const { task_key } = await createMockupTask({
           catalogProductId: cp.catalog_product_id,
           variantIds: variantIds.slice(0, 5),
           fileUrl: design.url,
-          placement: effectivePlacement,
+          placement: thumbnailPlacement,
         });
-        // Poll up to 30 seconds for mockup result
-        for (let i = 0; i < 15; i++) {
-          await new Promise((r) => setTimeout(r, 2000));
+        for (let i = 0; i < 20; i++) {
+          await sleep(2000);
           const result = await pollMockupTask(task_key);
           if (result.status === "completed" && result.mockups.length > 0) {
-            mockupUrl = result.mockups[0].mockup_url;
+            // Use the mockup matching thumbnailPlacement, or first available
+            const match = result.mockups.find((m) => m.placement === thumbnailPlacement) ?? result.mockups[0];
+            mockupUrl = match.mockup_url;
             break;
           }
           if (result.status === "failed") break;
@@ -218,13 +244,22 @@ async function runPublishJob(
         console.warn(`[PublishJob] Mockup generation failed for ${cp.catalog_product_name}:`, mockupErr);
       }
 
+      // Step 2: if mockup task didn't yield a URL, poll Printful's sync product for its auto-generated preview
+      if (!mockupUrl) {
+        console.log(`[PublishJob] Falling back to sync product preview for ${cp.catalog_product_name}`);
+        mockupUrl = await getSyncProductPreviewUrl(printfulProductId, 25000);
+      }
+
+      // Step 3: last resort — use the uploaded design's Printful preview URL
+      const thumbnailUrl = mockupUrl ?? printfulPreviewUrl;
+
       // Save to published_products
       await db.from("published_products").insert({
         design_id: design.id,
         catalog_product_id: cp.catalog_product_id,
         printful_sync_product_id: printfulProductId,
         name: productName,
-        thumbnail_url: mockupUrl,
+        thumbnail_url: thumbnailUrl,
         status: "published",
       });
 
@@ -250,8 +285,8 @@ async function runPublishJob(
     // Update job progress after each product
     await db.from("publish_jobs").update({ completed, failed }).eq("id", jobId);
 
-    // Small delay to respect Printful rate limits (10 req/s)
-    await new Promise((r) => setTimeout(r, 200));
+    // Increased delay to respect Printful rate limits (max 10 req/s, plus buffer)
+    await sleep(3000);
   }
 
   // Mark job complete
