@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { getProducts, getCatalogCategories } from "@/lib/printful";
 import ProductCard from "@/components/ui/ProductCard";
+import { productSlug } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 
 interface FloatingCard {
@@ -346,10 +347,31 @@ export default async function HomePage() {
       {/* Featured Products */}
       <section className="py-14 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* ItemList JSON-LD — enables rich results for product grid in Google Search */}
+          {products.length > 0 && (
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{
+                __html: JSON.stringify({
+                  "@context": "https://schema.org",
+                  "@type": "ItemList",
+                  "name": "Best-Selling Custom Print-on-Demand Products",
+                  "description": "Top custom graphic tees, hoodies, and accessories printed on demand by PrintDrop.",
+                  "url": "https://printdrop.com",
+                  "itemListElement": products.map((p, i) => ({
+                    "@type": "ListItem",
+                    "position": i + 1,
+                    "url": `https://printdrop.com/shop/${productSlug(p.name, p.id)}`,
+                    "name": p.name,
+                  })),
+                }),
+              }}
+            />
+          )}
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-xl font-bold text-zinc-900">Featured Products</h2>
-              <p className="mt-1 text-sm text-zinc-500">Handpicked favorites from our catalog</p>
+              <h2 className="text-xl font-bold text-zinc-900">Best-Selling Custom Graphic Tees &amp; Apparel</h2>
+              <p className="mt-1 text-sm text-zinc-500">Handpicked favorites — custom print-on-demand, shipped to your door</p>
             </div>
             <Link href="/shop" className="text-sm font-medium text-brand-600 hover:text-brand-700 hover:underline hidden sm:block">
               See all

@@ -268,6 +268,22 @@ export default function ProductClient({ product }: ProductClientProps) {
               </p>
             )}
 
+            {/* Product Specs — indexed by Google for long-tail product queries */}
+            <ul className="space-y-2">
+              {[
+                "100% ring-spun cotton — soft, breathable & pre-shrunk",
+                "Direct-to-garment (DTG) print — vibrant, fade-resistant colors",
+                "Unisex relaxed fit — true to size (see size guide above)",
+                "Care: machine wash cold inside-out, tumble dry low, no bleach",
+                "Printed & fulfilled by Printful — ships within 3–5 business days",
+              ].map((spec) => (
+                <li key={spec} className="flex items-start gap-2 text-sm text-zinc-600">
+                  <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" strokeWidth={2.5} />
+                  {spec}
+                </li>
+              ))}
+            </ul>
+
             {/* Color picker */}
             {hasColors && (
               <div>
