@@ -21,21 +21,8 @@ import { useCart } from "@/context/CartContext";
 import { formatPrice, cn } from "@/lib/utils";
 import type { PrintfulProductDetail } from "@/lib/printful";
 
-interface ProductSetting {
-  id: number;
-  custom_name?: string;
-  custom_description?: string;
-  specs?: string[];
-  custom_mockup_url?: string;
-  primary_color?: string;
-  badge?: string;
-  is_featured?: boolean;
-  is_hidden?: boolean;
-}
-
 interface ProductClientProps {
   product: PrintfulProductDetail;
-  productSetting?: ProductSetting | null;
 }
 
 const LIGHT_COLORS = new Set([
@@ -55,25 +42,20 @@ function isLightColor(hex: string, name: string): boolean {
   return (r * 299 + g * 587 + b * 114) / 1000 > 160;
 }
 
-export default function ProductClient({ product, productSetting }: ProductClientProps) {
+export default function ProductClient({ product }: ProductClientProps) {
   const { sync_product, sync_variants } = product;
   const { addItem } = useCart();
 
-  // Merge Supabase overrides
-  const displayName        = productSetting?.custom_name || sync_product.name;
-  const displayDescription = productSetting?.custom_description || sync_product.description;
-  const customMockup       = productSetting?.custom_mockup_url ?? null;
+  const displayName        = sync_product.name;
+  const displayDescription = sync_product.description;
 
-  const SPEC_DEFAULTS = [
+  const specs: string[] = [
     "100% ring-spun cotton — soft, breathable & pre-shrunk",
     "Direct-to-garment (DTG) print — vibrant, fade-resistant colors",
     "Unisex relaxed fit — true to size",
     "Machine wash cold inside-out, tumble dry low, no bleach",
     "Printed & fulfilled by Printful — ships within 3–5 business days",
   ];
-  const specs: string[] = (productSetting?.specs && productSetting.specs.length > 0)
-    ? productSetting.specs
-    : SPEC_DEFAULTS;
 
   // Map: color → { hexCode, mockupImage, shirtImage }
   // mockupImage = real Printful-generated preview with your design (only some colors)
@@ -140,29 +122,13 @@ export default function ProductClient({ product, productSetting }: ProductClient
   const hasColors = colors.length > 0;
   const hasSizes  = sizes.length > 0;
 
-  // If admin set a primary_color in dashboard, find the matching color name from variants
   const defaultColor = useMemo(() => {
-    const saved = productSetting?.primary_color;
-    if (saved && colors.length > 0) {
-      const hex = saved.toLowerCase().replace(/\s/g, "");
-      // 1. Exact color_code match
-      const byHex = sync_variants.find(
-        (v) => v.color && v.color_code && v.color_code.toLowerCase().replace(/\s/g, "") === hex
-      );
-      if (byHex?.color && colors.includes(byHex.color)) return byHex.color;
-      // 2. color_code2 match (for two-tone variants)
-      const byHex2 = sync_variants.find(
-        (v) => v.color && v.color_code2 && v.color_code2.toLowerCase().replace(/\s/g, "") === hex
-      );
-      if (byHex2?.color && colors.includes(byHex2.color)) return byHex2.color;
-    }
     return colors[0] ?? "";
-  }, [colors, productSetting, sync_variants]);
+  }, [colors]);
 
   const [selectedColor, setSelectedColor] = useState<string>(defaultColor);
   const [selectedSize,  setSelectedSize]  = useState<string>(sizes[0] ?? "");
 
-  // Keep selectedColor in sync if productSetting loads after mount
   useEffect(() => {
     if (defaultColor) setSelectedColor(defaultColor);
   }, [defaultColor]);
@@ -196,7 +162,7 @@ export default function ProductClient({ product, productSetting }: ProductClient
   function handleAddToCart() {
     addItem({
       variantId: selectedVariant.id,
-      productId: selectedVariant.product_id,
+      productId: selectedVariant.sync_product_id,
       name: `${displayName} — ${selectedVariant.name}`,
       price: parseFloat(selectedVariant.retail_price),
       currency: selectedVariant.currency,
@@ -228,7 +194,7 @@ export default function ProductClient({ product, productSetting }: ProductClient
               {(() => {
                 const cd = colorDataMap.get(selectedColor);
                 // Priority: real design mockup → catalog shirt in correct color → thumbnail → placeholder
-                const src = customMockup ?? cd?.mockupImage ?? cd?.shirtImage ?? sync_product.thumbnail_url ?? "/placeholder-product.jpg";
+                const src = cd?.mockupImage ?? cd?.shirtImage ?? sync_product.thumbnail_url ?? "/placeholder-product.jpg";
                 return (
                   <>
                     <Image

@@ -1,28 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import Script from "next/script";
 import Link from "next/link";
 import Image from "next/image";
 import {
   ChevronRight,
   ShieldCheck,
-  Lock,
-  CreditCard,
   Truck,
   CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { formatPrice } from "@/lib/utils";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 
-const steps = ["Shipping", "Payment", "Review"];
+declare global {
+  interface Window {
+    paypal?: {
+      Buttons: (config: {
+        createOrder: () => Promise<string>;
+        onApprove: (data: { orderID: string }) => Promise<void>;
+        onError?: (err: unknown) => void;
+      }) => { render: (container: HTMLElement) => void };
+    };
+  }
+}
+
+const steps = ["Shipping", "Review", "Payment"];
 
 export default function CheckoutPage() {
   const { items, totalPrice, clearCart } = useCart();
   const [step, setStep] = useState(0);
-  const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [paypalClientId, setPaypalClientId] = useState<string | null>(null);
+  const [sdkReady, setSdkReady] = useState(false);
+  const buttonsContainerRef = useRef<HTMLDivElement>(null);
+  const buttonsRenderedRef = useRef(false);
 
   const [shipping, setShipping] = useState({
     firstName: "",
@@ -36,19 +52,75 @@ export default function CheckoutPage() {
     country: "US",
   });
 
+  useEffect(() => {
+    fetch("/api/paypal/client-id")
+      .then((r) => r.json())
+      .then((d) => setPaypalClientId(d.clientId))
+      .catch(() => setPayError("Unable to load payment provider."));
+  }, []);
+
+  useEffect(() => {
+    if (step !== 2 || !sdkReady || !window.paypal || !buttonsContainerRef.current) return;
+    if (buttonsRenderedRef.current) return;
+    buttonsRenderedRef.current = true;
+
+    window.paypal.Buttons({
+      createOrder: async () => {
+        setPayError(null);
+        const res = await fetch("/api/paypal/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            items: items.map((i) => ({
+              productId: i.productId,
+              variantId: i.variantId,
+              quantity: i.quantity,
+              name: i.name,
+            })),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Failed to start payment");
+        return data.id;
+      },
+      onApprove: async (data) => {
+        const res = await fetch("/api/paypal/capture-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            paypalOrderId: data.orderID,
+            items: items.map((i) => ({
+              productId: i.productId,
+              variantId: i.variantId,
+              quantity: i.quantity,
+              name: i.name,
+              imageUrl: i.imageUrl,
+              size: i.size,
+              color: i.color,
+            })),
+            shipping,
+          }),
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+          setPayError(result.error ?? "Payment could not be completed. Please try again.");
+          return;
+        }
+        setCompleted(true);
+        clearCart();
+      },
+      onError: (err) => {
+        console.error("[paypal buttons]", err);
+        setPayError("Something went wrong with PayPal. Please try again.");
+      },
+    }).render(buttonsContainerRef.current);
+  }, [step, sdkReady, items, shipping, clearCart]);
+
   function handleShippingSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStep(1);
   }
 
-  async function handlePlaceOrder() {
-    setLoading(true);
-    // Simulate order placement
-    await new Promise((r) => setTimeout(r, 1500));
-    setLoading(false);
-    setCompleted(true);
-    clearCart();
-  }
 
   if (completed) {
     return (
@@ -245,56 +317,8 @@ export default function CheckoutPage() {
               </form>
             )}
 
-            {/* Step 1: Payment */}
+            {/* Step 1: Review */}
             {step === 1 && (
-              <div className="card p-6">
-                <div className="flex items-center gap-2 mb-6">
-                  <CreditCard className="h-5 w-5 text-brand-600" />
-                  <h2 className="text-lg font-bold text-zinc-900">
-                    Payment Details
-                  </h2>
-                </div>
-                <div className="space-y-4">
-                  <Input label="Cardholder Name" placeholder="John Doe" />
-                  <Input
-                    label="Card Number"
-                    placeholder="4111 1111 1111 1111"
-                    maxLength={19}
-                    icon={<CreditCard className="h-4 w-4" />}
-                  />
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input label="Expiry" placeholder="MM / YY" />
-                    <Input label="CVV" placeholder="123" maxLength={4} />
-                  </div>
-                </div>
-                <div className="mt-4 flex items-center gap-2 text-xs text-zinc-500">
-                  <Lock className="h-3.5 w-3.5" />
-                  Your payment info is encrypted and never stored.
-                </div>
-                <div className="mt-6 flex gap-3">
-                  <Button
-                    variant="secondary"
-                    size="lg"
-                    onClick={() => setStep(0)}
-                    className="flex-1 justify-center"
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    onClick={() => setStep(2)}
-                    className="flex-1 justify-center"
-                  >
-                    Review Order
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Step 2: Review */}
-            {step === 2 && (
               <div className="card p-6">
                 <h2 className="text-lg font-bold text-zinc-900 mb-6">
                   Review Your Order
@@ -343,7 +367,7 @@ export default function CheckoutPage() {
                   <Button
                     variant="secondary"
                     size="lg"
-                    onClick={() => setStep(1)}
+                    onClick={() => setStep(0)}
                     className="flex-1 justify-center"
                   >
                     Back
@@ -351,11 +375,55 @@ export default function CheckoutPage() {
                   <Button
                     variant="primary"
                     size="lg"
-                    loading={loading}
-                    onClick={handlePlaceOrder}
+                    onClick={() => setStep(2)}
                     className="flex-1 justify-center"
                   >
-                    Place Order
+                    Continue to Payment
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Payment */}
+            {step === 2 && (
+              <div className="card p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <ShieldCheck className="h-5 w-5 text-brand-600" />
+                  <h2 className="text-lg font-bold text-zinc-900">
+                    Payment
+                  </h2>
+                </div>
+
+                {payError && (
+                  <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>{payError}</span>
+                  </div>
+                )}
+
+                {paypalClientId && (
+                  <Script
+                    src={`https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=USD`}
+                    strategy="afterInteractive"
+                    onLoad={() => setSdkReady(true)}
+                  />
+                )}
+
+                <div ref={buttonsContainerRef} id="paypal-button-container" />
+
+                {!sdkReady && (
+                  <p className="text-sm text-zinc-500">Loading payment options…</p>
+                )}
+
+                <div className="mt-6">
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    onClick={() => setStep(1)}
+                    className="w-full justify-center"
+                  >
+                    Back
                   </Button>
                 </div>
               </div>

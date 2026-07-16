@@ -13,7 +13,7 @@ import {
   HardHat,
   ShoppingBag,
 } from "lucide-react";
-import { getProducts, getCatalogCategories, getProductImageForColor } from "@/lib/printful";
+import { getProducts, getCatalogCategories } from "@/lib/printful";
 import ProductCard from "@/components/ui/ProductCard";
 import { productSlug } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
@@ -245,18 +245,6 @@ function classifyProduct(name: string): CategoryKey {
   return "other";
 }
 
-async function getProductSettingsMap(): Promise<Record<number, { custom_mockup_url?: string; primary_color?: string; badge?: string; is_hidden?: boolean }>> {
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase.from("product_settings").select("id,custom_mockup_url,primary_color,badge,is_hidden");
-    const map: Record<number, { custom_mockup_url?: string; primary_color?: string; badge?: string; is_hidden?: boolean }> = {};
-    for (const row of data ?? []) map[row.id] = row;
-    return map;
-  } catch {
-    return {};
-  }
-}
-
 async function getPrintfulCategories() {
   try {
     const all = await getCatalogCategories();
@@ -293,32 +281,14 @@ const features = [
 ];
 
 export default async function HomePage() {
-  const [products, hero, categoryData, productSettingsMap, sectionSettings] = await Promise.all([
-    getFeaturedProducts(), getHeroSettings(), getCategorySettings(), getProductSettingsMap(), getHomepageSections()
+  const [products, hero, categoryData, sectionSettings] = await Promise.all([
+    getFeaturedProducts(), getHeroSettings(), getCategorySettings(), getHomepageSections()
   ]);
 
-  // Resolve shirt images for products with primary_color but no custom_mockup_url
-  const resolvedImages = await Promise.all(
-    products.map(async (p) => {
-      const setting = productSettingsMap[p.id];
-      if (setting?.custom_mockup_url) return setting.custom_mockup_url;
-      if (setting?.primary_color) {
-        const img = await getProductImageForColor(p.id, setting.primary_color);
-        if (img) return img;
-      }
-      return null;
-    })
-  );
-
-  const allProducts = products
-    .filter((p) => !productSettingsMap[p.id]?.is_hidden)
-    .map((p, i) => ({
-      ...p,
-      thumbnail_url: resolvedImages[i] || p.thumbnail_url,
-      best_image:    resolvedImages[i] || p.best_image,
-      adminBadge:    productSettingsMap[p.id]?.badge,
-      category:      classifyProduct(p.name),
-    }));
+  const allProducts = products.map((p) => ({
+    ...p,
+    category: classifyProduct(p.name),
+  }));
 
   // Group by category, max 6 per group (most recent first — API returns newest first)
   const byCategory: Record<CategoryKey, typeof allProducts> = {
@@ -540,9 +510,8 @@ export default async function HomePage() {
                     imageUrl={product.best_image || product.thumbnail_url}
                     freeShipping={product.id % 3 === 0}
                     badge={
-                      product.adminBadge ||
-                      (i === 0 && cat.badgeFirst ? cat.badgeFirst :
-                       i === 1 && cat.badgeSecond ? cat.badgeSecond : undefined)
+                      i === 0 && cat.badgeFirst ? cat.badgeFirst :
+                      i === 1 && cat.badgeSecond ? cat.badgeSecond : undefined
                     }
                   />
                 ))}

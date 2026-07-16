@@ -31,17 +31,8 @@ import {
   Map,
   PanelLeft,
   LayoutGrid,
-  Package,
   LayoutTemplate,
-  ImageIcon,
-  FolderOpen,
-  Grid3X3,
-  Rocket,
-  FileSliders,
-  Palette,
-  ImagePlus,
-} from "lucide-react";
-import { Logo } from "@/components/ui/DashboardLogo";
+} from "lucide-react";import { Logo } from "@/components/ui/DashboardLogo";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -100,21 +91,8 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    title: "Publishing",
-    items: [
-      { label: "Designs", href: "/dashboard/designs", icon: ImageIcon },
-      { label: "Collections", href: "/dashboard/collections", icon: FolderOpen },
-      { label: "Catalog", href: "/dashboard/catalog", icon: Grid3X3 },
-      { label: "Product Templates", href: "/dashboard/templates", icon: FileSliders },
-      { label: "Mockup Presets", href: "/dashboard/mockup-presets", icon: Palette },
-      { label: "Mockup Manager", href: "/dashboard/mockups", icon: ImagePlus },
-      { label: "Publish Engine", href: "/dashboard/publish", icon: Rocket },
-    ],
-  },
-  {
     title: "Subscriptions",
     items: [
-      { label: "Products", href: "/dashboard/products", icon: Package },
       { label: "Users", href: "/dashboard/users", icon: Users },
       {
         label: "Orders",
