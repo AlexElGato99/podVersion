@@ -25,6 +25,13 @@ interface VariantColor {
   sizes: { id: number; size: string; in_stock: boolean }[];
 }
 
+interface ProductPlacement {
+  placement: string;
+  height: number;
+  width: number;
+  orientation: string;
+}
+
 interface PresetProduct {
   catalog_product_id: number;
   catalog_product_name: string;
@@ -83,6 +90,7 @@ export default function MockupPresetsPage() {
   // Variant picker modal
   const [pickerProduct, setPickerProduct]   = useState<CatalogProduct | null>(null);
   const [pickerColors, setPickerColors]     = useState<VariantColor[]>([]);
+  const [pickerPlacements, setPickerPlacements] = useState<ProductPlacement[]>([]);
   const [pickerLoading, setPickerLoading]   = useState(false);
   const [pickerActiveColor, setPickerActiveColor] = useState<string | null>(null);
   const [pickerIds, setPickerIds]           = useState<Set<number>>(new Set());
@@ -177,12 +185,14 @@ export default function MockupPresetsPage() {
     setPickerPrice(existing?.default_price ?? "24.99");
     setPickerIds(new Set(existing?.selected_variant_ids ?? []));
     setPickerColors([]);
+    setPickerPlacements([]);
     setPickerLoading(true);
     setPickerActiveColor(null);
     const res  = await fetch(`/api/catalog/variants?product_id=${product.id}`);
     const data = await res.json();
     const cols: VariantColor[] = data.colors ?? [];
     setPickerColors(cols);
+    setPickerPlacements(data.placements ?? []);
     setPickerActiveColor(cols[0]?.color ?? null);
     if (!existing || existing.selected_variant_ids.length === 0) {
       setPickerIds(new Set(cols.flatMap((c) => c.sizes.filter((s) => s.in_stock).map((s) => s.id))));
@@ -460,14 +470,18 @@ export default function MockupPresetsPage() {
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <label style={{ ...s.label, margin: 0, fontSize: "10px", whiteSpace: "nowrap" }}>Placement</label>
-                  <select value={pickerPlacement} onChange={(e) => setPickerPlacement(e.target.value)} style={{ ...s.input, width: 130, padding: "4px 8px", fontSize: "12px" }}>
-                    <option value="front">Front</option>
-                    <option value="back">Back</option>
-                    <option value="left">Left Sleeve</option>
-                    <option value="right">Right Sleeve</option>
-                    <option value="label_outside">Outside Label</option>
-                    <option value="neck_inner">Inside Neck</option>
-                    <option value="default">Default</option>
+                  <select value={pickerPlacement} onChange={(e) => setPickerPlacement(e.target.value)} style={{ ...s.input, width: 200, padding: "4px 8px", fontSize: "12px" }}>
+                    {pickerPlacements.length > 0 ? pickerPlacements.map((p) => (
+                      <option key={p.placement} value={p.placement}>
+                        {p.placement.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())} ({p.width}&quot;&times;{p.height}&quot;)
+                      </option>
+                    )) : (
+                      <>
+                        <option value="front">Front</option>
+                        <option value="back">Back</option>
+                        <option value="label_outside">Outside Label</option>
+                      </>
+                    )}
                   </select>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>

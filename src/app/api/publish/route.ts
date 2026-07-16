@@ -204,11 +204,25 @@ async function runPublishJob(
         effectivePlacement = printfiles?.placements?.[0]?.placement_id ?? "front";
       }
 
+      // Build Printful position from design's saved position_data
+      const pd = design.position_data as { width_pct?: number; left_pct?: number; top_pct?: number } | null | undefined;
+      const printfulPosition = pd
+        ? {
+            area_width:  1800,
+            area_height: 2400,
+            width:  Math.round((pd.width_pct ?? 0.8) * 1800),
+            height: Math.round((pd.width_pct ?? 0.8) * 1800), // Printful derives height from image ratio
+            top:    Math.round((pd.top_pct  ?? 0.05) * 2400),
+            left:   Math.round((pd.left_pct ?? 0.1)  * 1800),
+          }
+        : undefined;
+
       const syncVariants = variantIds.map((id: number) => ({
         variant_id: id,
         retail_price: effectivePrice,
         placement: effectivePlacement,
         ...(printfulFileId ? { fileId: printfulFileId } : { fileUrl: design.url }),
+        ...(printfulPosition ? { position: printfulPosition } : {}),
       }));
 
       // Create product in Printful

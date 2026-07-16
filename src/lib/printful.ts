@@ -224,16 +224,19 @@ export async function uploadFileToPrintful(fileUrl: string, fileName: string): P
 export async function createPrintfulSyncProduct(params: {
   name: string;
   thumbnail: string;
-  variants: { variant_id: number; retail_price: string; placement: string; fileId?: number; fileUrl?: string }[];
+  variants: { variant_id: number; retail_price: string; placement: string; fileId?: number; fileUrl?: string; position?: { area_width: number; area_height: number; width: number; height: number; top: number; left: number } }[];
 }): Promise<{ id: number; external_id: string | null }> {
-  const syncVariants = params.variants.map((v) => ({
-    variant_id: v.variant_id,
-    retail_price: v.retail_price,
-    files: [v.fileId
+  const syncVariants = params.variants.map((v) => {
+    const fileObj: Record<string, unknown> = v.fileId
       ? { placement: v.placement, id: v.fileId }
-      : { placement: v.placement, url: v.fileUrl }
-    ],
-  }));
+      : { placement: v.placement, url: v.fileUrl };
+    if (v.position) fileObj.position = v.position;
+    return {
+      variant_id: v.variant_id,
+      retail_price: v.retail_price,
+      files: [fileObj],
+    };
+  });
 
   const body = {
     sync_product: { name: params.name, thumbnail: params.thumbnail },

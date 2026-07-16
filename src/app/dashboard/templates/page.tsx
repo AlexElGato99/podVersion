@@ -25,6 +25,13 @@ interface VariantColor {
   sizes: { id: number; size: string; in_stock: boolean }[];
 }
 
+interface ProductPlacement {
+  placement: string;
+  height: number;
+  width: number;
+  orientation: string;
+}
+
 interface Template {
   catalog_product_id: number;
   catalog_product_name: string;
@@ -79,6 +86,7 @@ export default function TemplatesPage() {
 
   const [selected, setSelected]             = useState<CatalogProduct | null>(null);
   const [colors, setColors]                 = useState<VariantColor[]>([]);
+  const [placements, setPlacements]         = useState<ProductPlacement[]>([]);
   const [loadingVariants, setLoadingVariants] = useState(false);
   const [variantError, setVariantError]     = useState<string | null>(null);
   const [activeColor, setActiveColor]       = useState<string | null>(null);
@@ -131,6 +139,7 @@ export default function TemplatesPage() {
       if (!res.ok) throw new Error(data.error);
       const cols: VariantColor[] = data.colors ?? [];
       setColors(cols);
+      setPlacements(data.placements ?? []);
       setActiveColor(cols[0]?.color ?? null);
       if (!tpl || tpl.selected_variant_ids.length === 0) {
         setSelectedIds(new Set(cols.flatMap((c) => c.sizes.filter((sv) => sv.in_stock).map((sv) => sv.id))));
@@ -321,26 +330,34 @@ export default function TemplatesPage() {
             <div style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", display: "flex", gap: "16px", alignItems: "center", flexWrap: "wrap", background: "var(--bg-secondary)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <label style={{ ...s.label, margin: 0, whiteSpace: "nowrap" }}>Print Placement</label>
-                <select value={placement} onChange={(e) => setPlacement(e.target.value)} style={{ ...s.input, width: 155, padding: "5px 10px", fontSize: "12px" }}>
-                  <option value="front">Front</option>
-                  <option value="back">Back</option>
-                  <option value="left">Left Sleeve</option>
-                  <option value="right">Right Sleeve</option>
-                  <option value="label_outside">Outside Label</option>
-                  <option value="neck_inner">Inside Neck</option>
-                  <option value="default">Default</option>
+                <select value={placement} onChange={(e) => setPlacement(e.target.value)} style={{ ...s.input, width: 180, padding: "5px 10px", fontSize: "12px" }}>
+                  {placements.length > 0 ? placements.map((p) => (
+                    <option key={p.placement} value={p.placement}>
+                      {p.placement.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())} ({p.width}&quot;×{p.height}&quot;)
+                    </option>
+                  )) : (
+                    <>
+                      <option value="front">Front</option>
+                      <option value="back">Back</option>
+                      <option value="label_outside">Outside Label</option>
+                    </>
+                  )}
                 </select>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <label style={{ ...s.label, margin: 0, whiteSpace: "nowrap" }}>Thumbnail View</label>
-                <select value={thumbnailPlacement} onChange={(e) => setThumbnailPlacement(e.target.value)} style={{ ...s.input, width: 155, padding: "5px 10px", fontSize: "12px" }}>
-                  <option value="front">Front</option>
-                  <option value="back">Back</option>
-                  <option value="left">Left Sleeve</option>
-                  <option value="right">Right Sleeve</option>
-                  <option value="label_outside">Outside Label</option>
-                  <option value="neck_inner">Inside Neck</option>
-                  <option value="default">Default</option>
+                <select value={thumbnailPlacement} onChange={(e) => setThumbnailPlacement(e.target.value)} style={{ ...s.input, width: 180, padding: "5px 10px", fontSize: "12px" }}>
+                  {placements.length > 0 ? placements.map((p) => (
+                    <option key={p.placement} value={p.placement}>
+                      {p.placement.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())} ({p.width}&quot;×{p.height}&quot;)
+                    </option>
+                  )) : (
+                    <>
+                      <option value="front">Front</option>
+                      <option value="back">Back</option>
+                      <option value="label_outside">Outside Label</option>
+                    </>
+                  )}
                 </select>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
