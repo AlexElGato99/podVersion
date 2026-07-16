@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   ImageOff, Upload, Trash2, Search, Loader2, Save,
   AlertCircle, Tag, FileText, RefreshCw, Eye, Move,
-  AlignCenter, Maximize2, X, Check,
+  AlignCenter, Maximize2, X, Check, LayoutGrid,
 } from "lucide-react";
 
 interface Design {
@@ -44,6 +45,7 @@ const s: Record<string, React.CSSProperties> = {
 };
 
 export default function DesignsPage() {
+  const router = useRouter();
   const [designs, setDesigns]         = useState<Design[]>([]);
   const [loading, setLoading]         = useState(true);
   const [uploading, setUploading]     = useState(false);
@@ -313,17 +315,23 @@ export default function DesignsPage() {
                       )}
                       <div style={{ display: "flex", gap: "6px" }}>
                         <button
-                          style={{ ...s.btn, flex: 1, justifyContent: "center", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border)", padding: "5px 10px", fontSize: "12px" }}
-                          onClick={() => { setEditId(design.id); setEditData({ name: design.name, tags: design.tags, description: design.description }); }}
+                          style={{ ...s.btn, flex: 1, justifyContent: "center", background: "#ea580c", color: "#fff", padding: "6px 10px", fontSize: "12px" }}
+                          onClick={() => router.push(`/dashboard/designs/${design.id}`)}
                         >
-                          <FileText size={12} /> Edit
+                          <LayoutGrid size={12} /> Manage Products
                         </button>
                         <button
-                          style={{ ...s.btn, justifyContent: "center", background: design.position_data ? "#0d948818" : "var(--bg-tertiary)", color: design.position_data ? "#0d9488" : "var(--text-secondary)", border: `1px solid ${design.position_data ? "#0d948840" : "var(--border)"}`, padding: "5px 10px", fontSize: "12px" }}
-                          onClick={() => openPositionEditor(design)}
-                          title="Set design position on print area"
+                          style={{ ...s.btn, justifyContent: "center", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border)", padding: "6px 10px", fontSize: "12px" }}
+                          onClick={() => { setEditId(design.id); setEditData({ name: design.name, tags: design.tags, description: design.description }); }}
                         >
-                          <Move size={12} /> Position
+                          <FileText size={12} />
+                        </button>
+                        <button
+                          style={{ ...s.btn, justifyContent: "center", background: design.position_data ? "#0d948818" : "var(--bg-tertiary)", color: design.position_data ? "#0d9488" : "var(--text-secondary)", border: `1px solid ${design.position_data ? "#0d948840" : "var(--border)"}`, padding: "6px 10px", fontSize: "12px" }}
+                          onClick={() => openPositionEditor(design)}
+                          title="Set global position on print area"
+                        >
+                          <Move size={12} />
                         </button>
                       </div>
                     </div>

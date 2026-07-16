@@ -188,6 +188,28 @@ export async function getCatalogProductVariants(catalogProductId: number) {
 }
 
 /**
+ * Get Printful's cost basis (NOT retail price) for a single catalog variant.
+ * Used by the Pricing Engine — our platform always derives retail price from
+ * this cost via pricing_rules, never from Printful's own suggested retail price.
+ * Returns null if the cost field is unavailable (caller should fall back).
+ */
+export async function getVariantCost(variantId: number): Promise<number | null> {
+  try {
+    const res = await fetch(`https://api.printful.com/v2/catalog-variants/${variantId}`, {
+      headers: { Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}` },
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const raw = data?.data?.price ?? data?.data?.cost ?? null;
+    const parsed = raw != null ? parseFloat(raw) : null;
+    return parsed != null && Number.isFinite(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Get printfile (placement) info for a catalog product (v2).
  */
 export async function getCatalogProductPrintfiles(catalogProductId: number) {
@@ -315,17 +337,59 @@ export async function createMockupTask(params: {
   fileUrl: string;
   placement?: string;
 }): Promise<{ task_key: string }> {
+  const placement = params.placement ?? "front";
+
+  // Fetch print area dimensions for this product + placement so we can build the position object
+  // Printful mockup generator requires `position` (area_width, area_height, width, height, top, left)
+  let areaWidth = 1800, areaHeight = 2400;
+  try {
+    const varId = params.variantIds[0];
+    const dimRes = await fetch(
+      `https://api.printful.com/v2/catalog-variants/${varId}`,
+      { headers: { Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}` }, cache: "no-store" as RequestCache }
+    );
+    if (dimRes.ok) {
+      const dimData = await dimRes.json();
+      const dims: { placement: string; width: number; height: number }[] =
+        dimData.data?.placement_dimensions ?? [];
+      const match = dims.find(d => d.placement === placement) ?? dims[0];
+      if (match) {
+        // placement_dimensions are in inches at 150dpi
+        areaWidth  = Math.round(match.width  * 150);
+        areaHeight = Math.round(match.height * 150);
+      }
+    }
+  } catch { /* use defaults */ }
+
+  // Place the design centred, filling ~85% of the print area width
+  const designWidth  = Math.round(areaWidth * 0.85);
+  const designHeight = designWidth; // Printful derives actual height from image ratio
+  const left = Math.round((areaWidth  - designWidth)  / 2);
+  const top  = Math.round((areaHeight - designHeight) / 2);
+
   const res = await fetch(
     `https://api.printful.com/mockup-generator/create-task/${params.catalogProductId}`,
     {
       method: "POST",
       headers: {
         Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}`,
+        "X-PF-Store-Id": process.env.PRINTFUL_STORE_ID ?? "",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         variant_ids: params.variantIds,
-        files: [{ placement: params.placement ?? "front", image_url: params.fileUrl }],
+        files: [{
+          placement,
+          image_url: params.fileUrl,
+          position: {
+            area_width:  areaWidth,
+            area_height: areaHeight,
+            width:  designWidth,
+            height: designHeight,
+            top,
+            left,
+          },
+        }],
         format: "jpg",
       }),
     }
@@ -344,7 +408,7 @@ export async function pollMockupTask(taskKey: string): Promise<{
 }> {
   const res = await fetch(
     `https://api.printful.com/mockup-generator/task?task_key=${taskKey}`,
-    { headers: { Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}` } }
+    { headers: { Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}`, "X-PF-Store-Id": process.env.PRINTFUL_STORE_ID ?? "" } }
   );
   if (!res.ok) throw new Error(`Mockup poll error ${res.status}`);
   const data = await res.json();

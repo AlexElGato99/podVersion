@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
     position_data,
     selected_variant_ids,
     default_price,
+    selected_mockup_url,
   } = body;
 
   if (!design_id || !catalog_product_id) {
@@ -67,6 +68,7 @@ export async function POST(req: NextRequest) {
         ...(position_data !== undefined && { position_data }),
         ...(selected_variant_ids !== undefined && { selected_variant_ids }),
         ...(default_price !== undefined && { default_price }),
+        ...(selected_mockup_url !== undefined && { selected_mockup_url }),
         status: newStatus,
         updated_at: now,
       })
@@ -87,6 +89,7 @@ export async function POST(req: NextRequest) {
       is_enabled: is_enabled ?? false,
       placement: placement ?? "front",
       position_data: position_data ?? null,
+      selected_mockup_url: selected_mockup_url ?? null,
       selected_variant_ids: selected_variant_ids ?? [],
       default_price: default_price ?? "24.99",
       status: "draft",
