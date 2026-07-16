@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getSetting } from "@/lib/settings";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,10 +11,10 @@ const supabaseAdmin = createClient(
  * Printful webhook receiver.
  * Configure this URL in Printful Dashboard → Settings → Webhooks:
  *   https://yourdomain.com/api/webhooks/printful?secret=YOUR_SECRET
- * (set PRINTFUL_WEBHOOK_SECRET in .env.local to enable the check below)
+ * (set the Webhook Secret field on the Printful API settings tab to enable the check below)
  */
 export async function POST(req: Request) {
-  const secret = process.env.PRINTFUL_WEBHOOK_SECRET;
+  const secret = await getSetting("printful", "printful_webhook_secret");
   if (secret) {
     const url = new URL(req.url);
     if (url.searchParams.get("secret") !== secret) {

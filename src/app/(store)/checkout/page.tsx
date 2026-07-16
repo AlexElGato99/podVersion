@@ -126,8 +126,8 @@ export default function CheckoutPage() {
     return (
       <div className="pt-24 pb-16 min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md">
-          <div className="mx-auto h-20 w-20 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center mb-6">
-            <CheckCircle2 className="h-10 w-10 text-green-400" />
+          <div className="mx-auto h-20 w-20 rounded-full bg-accent-500/10 border border-accent-500/30 flex items-center justify-center mb-6">
+            <CheckCircle2 className="h-10 w-10 text-accent-600" />
           </div>
           <h1 className="text-2xl font-bold text-zinc-900 mb-3">
             Order Placed!
@@ -173,17 +173,17 @@ export default function CheckoutPage() {
                     i === step
                       ? "text-brand-600"
                       : i < step
-                      ? "text-green-400 cursor-pointer"
-                      : "text-zinc-600"
+                      ? "text-accent-600 cursor-pointer"
+                      : "text-zinc-400"
                   }`}
                 >
                   <span
                     className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold border-2 transition-colors ${
                       i === step
-                        ? "border-brand-500 bg-brand-950/60 text-brand-500"
+                        ? "border-brand-600 bg-brand-50 text-brand-600"
                         : i < step
-                        ? "border-green-500 bg-green-950/60 text-green-300"
-                        : "border-zinc-300 text-zinc-600"
+                        ? "border-accent-600 bg-accent-500/10 text-accent-600"
+                        : "border-zinc-200 bg-white text-zinc-400"
                     }`}
                   >
                     {i < step ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
@@ -191,7 +191,7 @@ export default function CheckoutPage() {
                   {s}
                 </button>
                 {i < steps.length - 1 && (
-                  <ChevronRight className="h-4 w-4 text-zinc-700 mx-3" />
+                  <ChevronRight className="h-4 w-4 text-zinc-300 mx-3" />
                 )}
               </div>
             ))}
@@ -332,10 +332,11 @@ export default function CheckoutPage() {
                       <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-zinc-200">
                         <Image
                           src={item.imageUrl || "/placeholder-product.jpg"}
-                          alt={item.name}
+                          alt={item.color ? `${item.name} in ${item.color}` : item.name}
                           fill
                           sizes="56px"
                           className="object-cover"
+                          unoptimized
                         />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -343,6 +344,10 @@ export default function CheckoutPage() {
                           {item.name}
                         </p>
                         <p className="text-xs text-zinc-500">
+                          {item.color && <span>{item.color}</span>}
+                          {item.color && item.size && <span> · </span>}
+                          {item.size && <span>{item.size}</span>}
+                          {(item.color || item.size) && <span> · </span>}
                           Qty: {item.quantity}
                         </p>
                       </div>
@@ -410,7 +415,11 @@ export default function CheckoutPage() {
                   />
                 )}
 
-                <div ref={buttonsContainerRef} id="paypal-button-container" />
+                <div
+                  ref={buttonsContainerRef}
+                  id="paypal-button-container"
+                  className="relative z-0 isolate [transform:translateZ(0)]"
+                />
 
                 {!sdkReady && (
                   <p className="text-sm text-zinc-500">Loading payment options…</p>
@@ -443,7 +452,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between">
                   <span>Shipping</span>
-                  <span className="text-green-400">
+                  <span className="text-accent-600 font-medium">
                     {totalPrice > 50 ? "Free" : formatPrice(4.99)}
                   </span>
                 </div>

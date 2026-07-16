@@ -1,12 +1,16 @@
+import { getSettingsSection } from "./settings";
+
 const BASE_URL = "https://api.printful.com";
 
 async function printfulFetch(path: string, options: RequestInit = {}, retriesLeft = 1) {
+  const { printful_api_key, printful_store_id } = await getSettingsSection("printful");
+
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers: {
-      Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}`,
+      Authorization: `Bearer ${printful_api_key}`,
       "Content-Type": "application/json",
-      "X-PF-Store-Id": process.env.PRINTFUL_STORE_ID ?? "",
+      "X-PF-Store-Id": printful_store_id ?? "",
       ...options.headers,
     },
     next: { revalidate: 300 }, // re-fetch every 5 minutes — product data changes rarely, and this keeps request volume well under Printful's rate limit
@@ -192,7 +196,16 @@ export interface PrintfulRecipient {
 }
 
 export interface PrintfulOrderItem {
-  variant_id: number;
+  /**
+   * ID of the store's synced product variant (`sync_variants[].id` from
+   * getProduct/getProducts) — NOT the raw Printful catalog variant ID.
+   * Using `sync_variant_id` tells Printful to reuse the print files/mockups
+   * already configured for that synced variant, so no `files` array is
+   * needed here. Sending this same number as `variant_id` instead would be
+   * interpreted as a catalog variant and rejected (or fail silently)
+   * without an accompanying `files` array.
+   */
+  sync_variant_id: number;
   quantity: number;
   retail_price: string;
 }

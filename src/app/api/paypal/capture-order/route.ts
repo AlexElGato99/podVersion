@@ -100,7 +100,7 @@ export async function POST(req: Request) {
           phone: shipping.phone,
         },
         items: orderItems.map((i) => ({
-          variant_id: i.variantId,
+          sync_variant_id: i.variantId,
           quantity: i.quantity,
           retail_price: i.unitAmount.toFixed(2),
         })),

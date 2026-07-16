@@ -142,13 +142,6 @@ export default function ProductClient({ product }: ProductClientProps) {
     }) ?? sync_variants[0];
   }, [sync_variants, selectedColor, selectedSize, hasColors, hasSizes]);
 
-  // Thumbnail strip: one per color that has a real Printful mockup
-  const colorThumbnails = useMemo(() =>
-    colors
-      .map((color) => ({ color, image: colorDataMap.get(color)?.mockupImage ?? null }))
-      .filter((t): t is { color: string; image: string } => t.image !== null)
-  , [colors, colorDataMap]);
-
   // No separate selectedImage state needed — main image is derived from selectedColor
   // (kept only for cart imageUrl)
   const displayImage = (() => {
@@ -232,25 +225,6 @@ export default function ProductClient({ product }: ProductClientProps) {
                 <Heart className={cn("h-5 w-5", wishlist && "fill-red-500")} />
               </button>
             </div>
-            {colorThumbnails.length > 1 && (
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
-                {colorThumbnails.map(({ color, image }) => (
-                  <button
-                    key={color}
-                    title={color}
-                    onClick={() => setSelectedColor(color)}
-                    className={cn(
-                      "relative aspect-square overflow-hidden rounded-xl border-2 transition-all duration-150",
-                      selectedColor === color
-                        ? "border-brand-600 shadow-sm"
-                        : "border-zinc-200 hover:border-zinc-400"
-                    )}
-                  >
-                    <Image src={image} alt={color} fill sizes="80px" className="object-cover" unoptimized />
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Product details */}
