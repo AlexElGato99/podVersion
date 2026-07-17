@@ -262,7 +262,7 @@ export default function SettingsPage() {
       </div>
 
       {activeTab === "security" && (
-      <form onSubmit={onSubmit} className="card p-6 space-y-5">
+      <form onSubmit={onSubmit} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)] shadow-sm p-6 space-y-5">
         <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
           <KeyRound size={16} className="text-[var(--text-muted)]" />
           Change password
@@ -403,7 +403,7 @@ function IntegrationTab({
   onSave: () => void;
 }) {
   return (
-    <div className="card p-6 space-y-5">
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)] shadow-sm p-6 space-y-5">
       <div>
         <h2 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h2>
         <p className="text-xs text-[var(--text-muted)] mt-1">{description}</p>

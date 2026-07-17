@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/*
+ * The dashboard's light/dark toggle works by adding a `.dark` class to the
+ * `.dashboard-root` wrapper (see ThemeProvider.tsx / dashboard/layout.tsx),
+ * NOT by following the OS `prefers-color-scheme` setting. Tailwind v4's
+ * `dark:` variant defaults to the media-query strategy unless overridden,
+ * so without this, any `dark:*` utility class (used in the Payments/Email/
+ * Analytics settings tabs, admin login, etc.) would ignore the in-app
+ * toggle and only react to the OS preference instead.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   /* Etsy-inspired warm orange */
   --color-brand-50:  #fff7ed;
