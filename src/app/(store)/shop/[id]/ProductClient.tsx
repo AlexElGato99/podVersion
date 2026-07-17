@@ -161,6 +161,8 @@ export default function ProductClient({ product }: ProductClientProps) {
       currency: selectedVariant.currency,
       imageUrl: displayImage,
       quantity,
+      color: selectedVariant.color ?? undefined,
+      size: selectedVariant.size ?? undefined,
     });
     setAdded(true);
     setTimeout(() => setAdded(false), 2500);

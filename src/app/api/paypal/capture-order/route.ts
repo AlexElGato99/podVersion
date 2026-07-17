@@ -87,6 +87,7 @@ export async function POST(req: Request) {
     // 3. Place the production order with Printful
     let printfulOrderId: number | null = null;
     let printfulStatus = "pending";
+    let printfulError: string | null = null;
     try {
       const printfulOrder = await createPrintfulOrder({
         recipient: {
@@ -110,7 +111,8 @@ export async function POST(req: Request) {
       printfulStatus = printfulOrder.status;
     } catch (err) {
       // Payment already captured — log loudly so it can be fulfilled manually, but don't fail the customer's order.
-      console.error("[api/paypal/capture-order] Printful order creation failed", err);
+      printfulError = err instanceof Error ? err.message : String(err);
+      console.error("[api/paypal/capture-order] Printful order creation failed:", printfulError);
     }
 
     // 4. Persist the order in Supabase
@@ -139,6 +141,7 @@ export async function POST(req: Request) {
         currency: "USD",
         shipping_address: shipping,
         items: orderItems,
+        fulfillment_error: printfulError,
       })
       .select("id")
       .single();
@@ -152,6 +155,7 @@ export async function POST(req: Request) {
       orderId: dbOrder?.id ?? null,
       printfulOrderId,
       printfulStatus,
+      printfulError,
     });
   } catch (err) {
     console.error("[api/paypal/capture-order]", err);
