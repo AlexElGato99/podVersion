@@ -64,7 +64,8 @@ async function loadAllSections(): Promise<Record<SettingsSection, Record<string,
   if (admin) {
     const { data, error } = await admin.from("app_settings").select("*");
     if (!error) {
-      for (const row of data ?? []) {
+      const rows = (data ?? []) as Array<{ id: string; data: Record<string, string> | null }>;
+      for (const row of rows) {
         stored[row.id as SettingsSection] = (row.data ?? {}) as Record<string, string>;
       }
     } else {
