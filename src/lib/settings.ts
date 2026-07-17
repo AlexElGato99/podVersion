@@ -2,10 +2,27 @@ import { createClient } from "@supabase/supabase-js";
 
 export type SettingsSection = "payments" | "printful" | "email" | "analytics";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Created lazily (not at module load) and guarded — if these env vars are
+// missing/misconfigured (e.g. not set for the Vercel "Production" environment
+// scope), we must NOT throw here. Throwing at import time would crash every
+// route that reads settings (client-id, printful.ts, webhooks, etc.) with an
+// unhandled exception instead of a clean JSON error, silently breaking things
+// like the PayPal button with no visible cause.
+let supabaseAdmin: ReturnType<typeof createClient> | null = null;
+function getSupabaseAdmin() {
+  if (supabaseAdmin) return supabaseAdmin;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    console.error(
+      "[settings] NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not set — " +
+      "falling back to .env-only settings (dashboard-saved values will not be read)."
+    );
+    return null;
+  }
+  supabaseAdmin = createClient(url, key);
+  return supabaseAdmin;
+}
 
 // Values read from .env.local — used only as a fallback until an admin saves
 // a real value through the dashboard. Once saved, the Supabase-stored value
@@ -42,11 +59,16 @@ const CACHE_TTL_MS = 15_000; // short TTL — keeps DB reads cheap while still p
 async function loadAllSections(): Promise<Record<SettingsSection, Record<string, string>>> {
   if (cache && cache.expires > Date.now()) return cache.data;
 
-  const { data, error } = await supabaseAdmin.from("app_settings").select("*");
   const stored: Partial<Record<SettingsSection, Record<string, string>>> = {};
-  if (!error) {
-    for (const row of data ?? []) {
-      stored[row.id as SettingsSection] = (row.data ?? {}) as Record<string, string>;
+  const admin = getSupabaseAdmin();
+  if (admin) {
+    const { data, error } = await admin.from("app_settings").select("*");
+    if (!error) {
+      for (const row of data ?? []) {
+        stored[row.id as SettingsSection] = (row.data ?? {}) as Record<string, string>;
+      }
+    } else {
+      console.error("[settings] Failed to read app_settings from Supabase:", error.message);
     }
   }
 
