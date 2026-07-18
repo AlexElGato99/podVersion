@@ -153,10 +153,9 @@ const CARD_POS: Record<FloatingCard["position"], React.CSSProperties> = {
   "bottom-right": { position: "absolute", right: "2%", bottom: "6%", zIndex: 5 },
 };
 
-async function getFeaturedProducts() {
+async function getAllProducts() {
   try {
-    const products = await getProducts();
-    return products.slice(0, 8);
+    return await getProducts();
   } catch {
     return [];
   }
@@ -233,15 +232,34 @@ async function getHomepageSections(): Promise<ProductCategory[]> {
   return PRODUCT_CATEGORIES;
 }
 
-function classifyProduct(name: string): CategoryKey {
-  const n = name.toLowerCase();
-  if (/t-shirt|tee|jersey|tank|polo|unisex\s+(organic|staple|premium)\s+\w*\s*(t-shirt|tee)/i.test(name)) return "tshirts";
-  if (/hoodie|sweatshirt|pullover|fleece|crewneck/i.test(name)) return "hoodies";
-  if (/mug|cup|tumbler|bottle|drinkware/i.test(name)) return "mugs";
-  if (/sticker|decal/i.test(name)) return "stickers";
-  if (/cap|hat|beanie|snapback|dad hat/i.test(name)) return "caps";
-  // extra t-shirt patterns
-  if (n.includes("shirt")) return "tshirts";
+function classifyProduct(name: string, catalogTypeName?: string | null): CategoryKey {
+  // Prefer the real Printful catalog product type (e.g. "Snapback Trucker
+  // Cap", "Ceramic Mug") — it's authoritative and doesn't depend on however
+  // the merchant happened to title the synced store product. Only fall back
+  // to guessing from the custom title if the catalog lookup wasn't available.
+  const primary = catalogTypeName?.trim() || name;
+  const n = primary.toLowerCase();
+
+  // Check the most specific/least ambiguous keywords first so a cap or mug
+  // whose title also happens to contain an unrelated word never gets
+  // swallowed by the broader t-shirt fallback below.
+  if (/mug|cup|tumbler|bottle|drinkware/.test(n)) return "mugs";
+  if (/sticker|decal/.test(n)) return "stickers";
+  if (/cap|hat|beanie|snapback|trucker|dad hat/.test(n)) return "caps";
+  if (/hoodie|sweatshirt|pullover|fleece|crewneck/.test(n)) return "hoodies";
+  if (/t-shirt|tee|jersey|tank|polo|shirt/.test(n)) return "tshirts";
+
+  // Fall back to the store title too, in case the catalog type name was
+  // generic (e.g. "Custom Product") but the merchant's own title is clear.
+  if (primary !== name) {
+    const alt = name.toLowerCase();
+    if (/mug|cup|tumbler|bottle|drinkware/.test(alt)) return "mugs";
+    if (/sticker|decal/.test(alt)) return "stickers";
+    if (/cap|hat|beanie|snapback|trucker|dad hat/.test(alt)) return "caps";
+    if (/hoodie|sweatshirt|pullover|fleece|crewneck/.test(alt)) return "hoodies";
+    if (/t-shirt|tee|jersey|tank|polo|shirt/.test(alt)) return "tshirts";
+  }
+
   return "other";
 }
 
@@ -282,24 +300,29 @@ const features = [
 
 export default async function HomePage() {
   const [products, hero, categoryData, sectionSettings] = await Promise.all([
-    getFeaturedProducts(), getHeroSettings(), getCategorySettings(), getHomepageSections()
+    getAllProducts(), getHeroSettings(), getCategorySettings(), getHomepageSections()
   ]);
 
+  // Classify every product (not just a handful) so a section never comes up
+  // empty just because its matching products weren't among the first few
+  // fetched — each product is bucketed using the authoritative Printful
+  // catalog type first, falling back to its store title only if that's
+  // unavailable.
   const allProducts = products.map((p) => ({
     ...p,
-    category: classifyProduct(p.name),
+    category: classifyProduct(p.name, p.catalog_type_name),
   }));
 
-  // Group by category, max 6 per group (most recent first — API returns newest first)
+  // Group by category, capped per-section by each section's configured max (default 6)
   const byCategory: Record<CategoryKey, typeof allProducts> = {
     tshirts: [], hoodies: [], mugs: [], stickers: [], caps: [], other: [],
   };
   for (const p of allProducts) {
     const cat = p.category as CategoryKey;
-    if (byCategory[cat].length < 6) byCategory[cat].push(p);
+    byCategory[cat].push(p);
   }
 
-  // Keep the first 8 for the JSON-LD ItemList (all products combined)
+  // Keep the first 8 (most recently added) for the JSON-LD ItemList (all products combined)
   const featuredProducts = allProducts.slice(0, 8);
 
   return (

@@ -83,7 +83,33 @@ export interface PrintfulProductDetail {
   sync_variants: PrintfulVariant[];
 }
 
-export async function getProducts(): Promise<(PrintfulProduct & { starting_price: string | null; best_image: string })[]> {
+// Cache catalog product type lookups within a single server process — many
+// sync variants (different colors/sizes) share the same underlying catalog
+// product, so this avoids redundant /products/{id} calls.
+const catalogTypeCache = new Map<number, string | null>();
+
+/**
+ * Look up the REAL catalog product type name (e.g. "T-Shirt", "Snapback
+ * Trucker Cap", "Ceramic Mug") for a given Printful catalog product ID.
+ * This is authoritative and independent of whatever custom name a merchant
+ * gave their synced store product — used so homepage/shop category sections
+ * classify products correctly even when the product's own title doesn't
+ * mention its type (e.g. a cap named "Summer Drop 2026").
+ */
+async function getCatalogProductTypeName(catalogProductId: number): Promise<string | null> {
+  if (catalogTypeCache.has(catalogProductId)) return catalogTypeCache.get(catalogProductId) ?? null;
+  try {
+    const data = await printfulFetch(`/products/${catalogProductId}`);
+    const typeName: string | null = data.result?.product?.type_name ?? data.result?.product?.type ?? null;
+    catalogTypeCache.set(catalogProductId, typeName);
+    return typeName;
+  } catch {
+    catalogTypeCache.set(catalogProductId, null);
+    return null;
+  }
+}
+
+export async function getProducts(): Promise<(PrintfulProduct & { starting_price: string | null; best_image: string; catalog_type_name: string | null })[]> {
   const data = await printfulFetch("/store/products?limit=50");
   const products: PrintfulProduct[] = data.result ?? [];
 
@@ -98,9 +124,11 @@ export async function getProducts(): Promise<(PrintfulProduct & { starting_price
         ?.flatMap((v) => v.files ?? [])
         .find((f) => f.type === "preview" && f.preview_url);
       const best_image = previewFile?.preview_url ?? p.thumbnail_url ?? "";
-      return { ...p, starting_price: price, best_image };
+      const catalogProductId = detail.sync_variants?.[0]?.product?.product_id ?? null;
+      const catalog_type_name = catalogProductId ? await getCatalogProductTypeName(catalogProductId) : null;
+      return { ...p, starting_price: price, best_image, catalog_type_name };
     } catch {
-      return { ...p, starting_price: null, best_image: p.thumbnail_url ?? "" };
+      return { ...p, starting_price: null, best_image: p.thumbnail_url ?? "", catalog_type_name: null };
     }
   });
 

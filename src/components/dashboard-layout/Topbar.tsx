@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bell,
   Sun,
@@ -10,12 +10,45 @@ import {
   Settings,
   Globe,
   LogOut,
+  Package,
+  Truck,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { useTheme } from "@/components/dashboard-layout/ThemeProvider";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+
+interface DashboardNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string | null;
+  read: boolean;
+  created_at: string;
+}
+
+const NOTIFICATION_ICONS: Record<string, React.ElementType> = {
+  new_order: Package,
+  order_shipped: Truck,
+  order_fulfilled: CheckCircle2,
+  order_cancelled: XCircle,
+  fulfillment_error: AlertTriangle,
+};
+
+function notifTimeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
 
 const FRONTEND_URL = process.env.NEXT_PUBLIC_FRONTEND_URL ?? "/";
 
@@ -53,9 +86,60 @@ export function Topbar({ title }: TopbarProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
+  const [notifications, setNotifications] = useState<DashboardNotification[]>([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
   const showToast = (msg: string) => {
     setToast(msg);
     window.setTimeout(() => setToast(null), 2200);
+  };
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    const loadNotifications = async () => {
+      const { data } = await supabase
+        .from("notifications")
+        .select("id, type, title, message, read, created_at")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (data) setNotifications(data as DashboardNotification[]);
+    };
+    loadNotifications();
+
+    // Live updates — new order notifications appear instantly without a page refresh.
+    const channel = supabase
+      .channel("dashboard-notifications")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, (payload) => {
+        const row = payload.new as DashboardNotification;
+        setNotifications((prev) => [row, ...prev].slice(0, 20));
+        showToast(row.title);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  useEffect(() => {
+    const onClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  const markRead = async (id: string) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    await createClient().from("notifications").update({ read: true }).eq("id", id);
+  };
+
+  const markAllRead = async () => {
+    const unreadIds = notifications.filter((n) => !n.read).map((n) => n.id);
+    if (unreadIds.length === 0) return;
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    await createClient().from("notifications").update({ read: true }).in("id", unreadIds);
   };
 
   const handleRefresh = () => {
@@ -165,16 +249,63 @@ export function Topbar({ title }: TopbarProps) {
           )}
         </button>
 
-        <Link
-          href="/dashboard/notifications"
-          className="relative w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
-          title="Notifications"
-        >
-          <Bell size={16} strokeWidth={1.75} />
-          <span className="absolute top-1.5 right-1.5 min-w-[14px] h-3.5 px-0.5 bg-[var(--accent)] rounded-full flex items-center justify-center text-white text-[8px] font-bold leading-none shadow-sm">
-            1
-          </span>
-        </Link>
+        <div className="relative" ref={notifRef}>
+          <button
+            type="button"
+            onClick={() => setNotifOpen((v) => !v)}
+            className="relative w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+            title="Notifications"
+            aria-label="Notifications"
+          >
+            <Bell size={16} strokeWidth={1.75} />
+            {unreadCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 min-w-[14px] h-3.5 px-0.5 bg-[var(--accent)] rounded-full flex items-center justify-center text-white text-[8px] font-bold leading-none shadow-sm">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {notifOpen && (
+            <div className="absolute right-0 top-[calc(100%+8px)] w-80 max-h-[420px] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] shadow-xl z-50">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+                <span className="text-sm font-semibold text-[var(--text-primary)]">Notifications</span>
+                {unreadCount > 0 && (
+                  <button onClick={markAllRead} className="text-[11px] font-medium text-[var(--accent)] hover:underline">
+                    Mark all read
+                  </button>
+                )}
+              </div>
+              {notifications.length === 0 ? (
+                <p className="px-4 py-8 text-center text-xs text-[var(--text-muted)]">No notifications yet.</p>
+              ) : (
+                <ul>
+                  {notifications.map((n) => {
+                    const Icon = NOTIFICATION_ICONS[n.type] ?? Bell;
+                    return (
+                      <li key={n.id}>
+                        <Link
+                          href="/dashboard/orders"
+                          onClick={() => { markRead(n.id); setNotifOpen(false); }}
+                          className="flex items-start gap-3 px-4 py-3 border-b border-[var(--border-light,var(--border))] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors"
+                        >
+                          <div className={cn("mt-0.5 w-7 h-7 shrink-0 rounded-lg flex items-center justify-center", n.read ? "bg-[var(--bg-tertiary)] text-[var(--text-muted)]" : "bg-[var(--accent)]/15 text-[var(--accent)]")}>
+                            <Icon size={13} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className={cn("text-xs leading-snug", n.read ? "text-[var(--text-secondary)]" : "text-[var(--text-primary)] font-semibold")}>{n.title}</p>
+                            {n.message && <p className="text-[11px] text-[var(--text-muted)] mt-0.5 line-clamp-2">{n.message}</p>}
+                            <p className="text-[10px] text-[var(--text-muted)] mt-1">{notifTimeAgo(n.created_at)}</p>
+                          </div>
+                          {!n.read && <span className="mt-1.5 w-2 h-2 rounded-full bg-[var(--accent)] shrink-0" />}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
 
         <Link
           href="/dashboard/settings"

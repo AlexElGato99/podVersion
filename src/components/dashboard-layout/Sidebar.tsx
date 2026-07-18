@@ -55,7 +55,6 @@ const navSections: NavSection[] = [
         label: "Orders",
         href: "/dashboard/orders",
         icon: ShoppingCart,
-        badge: 3,
       },
     ],
   },

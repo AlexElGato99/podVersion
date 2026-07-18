@@ -56,6 +56,13 @@ const ENV_FALLBACKS: Record<SettingsSection, Record<string, string | undefined>>
 let cache: { data: Record<SettingsSection, Record<string, string>>; expires: number } | null = null;
 const CACHE_TTL_MS = 15_000; // short TTL — keeps DB reads cheap while still picking up admin edits quickly
 
+// Logged once per server instance instead of on every request — the
+// `app_settings` table not existing yet is expected until the admin runs
+// supabase-app-settings-migration.sql, and is already handled gracefully
+// (falls back to .env values), so it shouldn't spam production logs as a
+// repeated "error" on every single page/API request.
+let missingTableWarned = false;
+
 async function loadAllSections(): Promise<Record<SettingsSection, Record<string, string>>> {
   if (cache && cache.expires > Date.now()) return cache.data;
 
@@ -67,6 +74,16 @@ async function loadAllSections(): Promise<Record<SettingsSection, Record<string,
       const rows = (data ?? []) as Array<{ id: string; data: Record<string, string> | null }>;
       for (const row of rows) {
         stored[row.id as SettingsSection] = (row.data ?? {}) as Record<string, string>;
+      }
+    } else if (error.message.includes("Could not find the table")) {
+      // Expected until the migration is run — warn once, not on every request.
+      if (!missingTableWarned) {
+        missingTableWarned = true;
+        console.warn(
+          "[settings] 'app_settings' table not found — using .env values only. " +
+          "Run supabase-app-settings-migration.sql in Supabase SQL Editor to enable " +
+          "saving settings from the dashboard. (This warning will not repeat.)"
+        );
       }
     } else {
       console.error("[settings] Failed to read app_settings from Supabase:", error.message);

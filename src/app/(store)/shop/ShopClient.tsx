@@ -11,6 +11,7 @@ interface Product {
   thumbnail_url: string;
   starting_price: string | null;
   best_image: string;
+  catalog_type_name?: string | null;
 }
 
 const SORT_OPTIONS = [
@@ -20,17 +21,22 @@ const SORT_OPTIONS = [
   { label: "Name A–Z", value: "name_asc" },
 ];
 
-// Derive a simple category from the product name
-function inferCategory(name: string): string {
-  const n = name.toLowerCase();
+// Derive a simple category from a product's real Printful catalog type name
+// (preferred — authoritative regardless of the merchant's custom title) or,
+// failing that, its own title. Specific keywords (mug/sticker/hat) are
+// checked before the generic "shirt" match so a cap or mug never gets
+// swallowed by the broader t-shirt fallback.
+function inferCategory(name: string, catalogTypeName?: string | null): string {
+  const primary = catalogTypeName?.trim() || name;
+  const n = primary.toLowerCase();
+  if (n.includes("mug") || n.includes("cup") || n.includes("tumbler") || n.includes("bottle")) return "Mugs";
+  if (n.includes("sticker")) return "Stickers";
+  if (n.includes("hat") || n.includes("cap") || n.includes("beanie") || n.includes("snapback") || n.includes("trucker")) return "Hats";
+  if (n.includes("phone") || n.includes("case")) return "Phone Cases";
+  if (n.includes("bag") || n.includes("tote") || n.includes("backpack")) return "Bags";
+  if (n.includes("poster") || n.includes("canvas") || n.includes("art")) return "Posters";
   if (n.includes("hoodie") || n.includes("sweatshirt")) return "Hoodies";
   if (n.includes("t-shirt") || n.includes("tee") || n.includes("shirt")) return "T-Shirts";
-  if (n.includes("mug") || n.includes("cup")) return "Mugs";
-  if (n.includes("poster") || n.includes("print") || n.includes("art")) return "Posters";
-  if (n.includes("hat") || n.includes("cap") || n.includes("beanie")) return "Hats";
-  if (n.includes("bag") || n.includes("tote") || n.includes("backpack")) return "Bags";
-  if (n.includes("sticker")) return "Stickers";
-  if (n.includes("phone") || n.includes("case")) return "Phone Cases";
   return "Other";
 }
 
@@ -52,7 +58,7 @@ export default function ShopClient({ products, categoryOptions = [] }: { product
   // Derive unique categories — prefer admin-configured list, fall back to inference from products
   const categories = useMemo(() => {
     if (categoryOptions.length > 0) return ["All", ...categoryOptions];
-    const set = new Set(products.map((p) => inferCategory(p.name)));
+    const set = new Set(products.map((p) => inferCategory(p.name, p.catalog_type_name)));
     return ["All", ...Array.from(set).sort()];
   }, [products, categoryOptions]);
 
@@ -89,7 +95,7 @@ export default function ShopClient({ products, categoryOptions = [] }: { product
       if (matchedOption) {
         // Match by inferred category OR product name keyword
         list = list.filter(
-          (p) => inferCategory(p.name).toLowerCase() === matchedOption.toLowerCase()
+          (p) => inferCategory(p.name, p.catalog_type_name).toLowerCase() === matchedOption.toLowerCase()
                || p.name.toLowerCase().includes(matchedOption.toLowerCase())
         );
       } else {
@@ -97,7 +103,7 @@ export default function ShopClient({ products, categoryOptions = [] }: { product
         const keywords = catLower.split("-").filter((w) => w.length > 2);
         list = list.filter((p) => {
           const name = p.name.toLowerCase();
-          return keywords.some((kw) => name.includes(kw)) || inferCategory(p.name).toLowerCase() === catLower;
+          return keywords.some((kw) => name.includes(kw)) || inferCategory(p.name, p.catalog_type_name).toLowerCase() === catLower;
         });
       }
     }

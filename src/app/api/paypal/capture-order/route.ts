@@ -150,6 +150,34 @@ export async function POST(req: Request) {
       console.error("[api/paypal/capture-order] Failed to save order", dbError);
     }
 
+    // 5. Notify the admin dashboard (bell icon) — best-effort, never fails the order.
+    try {
+      const customerName = `${shipping.firstName} ${shipping.lastName}`;
+      const itemCount = orderItems.reduce((s, i) => s + i.quantity, 0);
+      await supabaseAdmin.from("notifications").insert({
+        type: "new_order",
+        title: `New order from ${customerName}`,
+        message: `${itemCount} item${itemCount === 1 ? "" : "s"} — $${total.toFixed(2)}`,
+        metadata: {
+          order_id: dbOrder?.id ?? null,
+          printful_order_id: printfulOrderId,
+          total_amount: total,
+          customer_name: customerName,
+          email: shipping.email,
+        },
+      });
+      if (printfulError) {
+        await supabaseAdmin.from("notifications").insert({
+          type: "fulfillment_error",
+          title: `Fulfillment failed for ${customerName}'s order`,
+          message: printfulError,
+          metadata: { order_id: dbOrder?.id ?? null, email: shipping.email },
+        });
+      }
+    } catch (notifyErr) {
+      console.error("[api/paypal/capture-order] Failed to create notification", notifyErr);
+    }
+
     return NextResponse.json({
       success: true,
       orderId: dbOrder?.id ?? null,

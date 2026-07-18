@@ -44,6 +44,13 @@ export async function POST(req: Request) {
 
   const printfulOrderId = String(orderId);
 
+  // Look up the order once so notifications can reference the customer/amount.
+  const { data: order } = await supabaseAdmin
+    .from("orders")
+    .select("id, email, total_amount")
+    .eq("printful_order_id", printfulOrderId)
+    .maybeSingle();
+
   switch (payload.type) {
     case "package_shipped": {
       const shipment = payload.data?.shipment;
@@ -56,6 +63,14 @@ export async function POST(req: Request) {
           tracking_url: shipment?.tracking_url ?? null,
         })
         .eq("printful_order_id", printfulOrderId);
+      await supabaseAdmin.from("notifications").insert({
+        type: "order_shipped",
+        title: `Order shipped${order?.email ? ` — ${order.email}` : ""}`,
+        message: shipment?.tracking_number
+          ? `Tracking: ${shipment.tracking_number}${shipment.carrier ? ` (${shipment.carrier})` : ""}`
+          : "Package has shipped.",
+        metadata: { order_id: order?.id ?? null, printful_order_id: printfulOrderId },
+      });
       break;
     }
     case "order_updated": {
@@ -65,6 +80,12 @@ export async function POST(req: Request) {
           .from("orders")
           .update({ status: "fulfilled" })
           .eq("printful_order_id", printfulOrderId);
+        await supabaseAdmin.from("notifications").insert({
+          type: "order_fulfilled",
+          title: `Order fulfilled${order?.email ? ` — ${order.email}` : ""}`,
+          message: "Printful has fulfilled this order.",
+          metadata: { order_id: order?.id ?? null, printful_order_id: printfulOrderId },
+        });
       }
       break;
     }
@@ -74,6 +95,12 @@ export async function POST(req: Request) {
         .from("orders")
         .update({ status: "cancelled" })
         .eq("printful_order_id", printfulOrderId);
+      await supabaseAdmin.from("notifications").insert({
+        type: "order_cancelled",
+        title: `Order cancelled${order?.email ? ` — ${order.email}` : ""}`,
+        message: payload.type === "order_failed" ? "Printful reported a fulfillment failure." : "Order was cancelled.",
+        metadata: { order_id: order?.id ?? null, printful_order_id: printfulOrderId },
+      });
       break;
     }
     default:
