@@ -1,0 +1,19 @@
+# *
+User-agent: *
+Allow: /
+
+# *
+User-agent: *
+Disallow: /dashboard
+Disallow: /account
+Disallow: /auth
+Disallow: /api
+Disallow: /checkout
+Disallow: /cart
+
+# Host
+Host: https://printdrop.com
+
+# Sitemaps
+Sitemap: https://printdrop.com/sitemap.xml
+Sitemap: https://printdrop.com/server-sitemap.xml

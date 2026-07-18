@@ -1,5 +1,5 @@
 /** @type {import('next-sitemap').IConfig} */
-module.exports = {
+const config = {
   siteUrl: process.env.SITE_URL || "https://printdrop.com",
   generateRobotsTxt: true,
   changefreq: "weekly",
@@ -23,3 +23,6 @@ module.exports = {
     ],
   },
 };
+
+export default config;
+
