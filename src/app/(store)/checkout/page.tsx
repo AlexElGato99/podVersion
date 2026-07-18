@@ -30,6 +30,32 @@ declare global {
 
 const steps = ["Shipping", "Review", "Payment"];
 
+// Full USPS 2-letter state/territory codes — required so Printful's address
+// validation (which rejects free-text state names/typos) always receives a
+// valid code. This was the confirmed cause of a real order being rejected:
+// "Recipient: Invalid state code".
+const US_STATES: { code: string; name: string }[] = [
+  { code: "AL", name: "Alabama" }, { code: "AK", name: "Alaska" }, { code: "AZ", name: "Arizona" },
+  { code: "AR", name: "Arkansas" }, { code: "CA", name: "California" }, { code: "CO", name: "Colorado" },
+  { code: "CT", name: "Connecticut" }, { code: "DE", name: "Delaware" }, { code: "DC", name: "District of Columbia" },
+  { code: "FL", name: "Florida" }, { code: "GA", name: "Georgia" }, { code: "HI", name: "Hawaii" },
+  { code: "ID", name: "Idaho" }, { code: "IL", name: "Illinois" }, { code: "IN", name: "Indiana" },
+  { code: "IA", name: "Iowa" }, { code: "KS", name: "Kansas" }, { code: "KY", name: "Kentucky" },
+  { code: "LA", name: "Louisiana" }, { code: "ME", name: "Maine" }, { code: "MD", name: "Maryland" },
+  { code: "MA", name: "Massachusetts" }, { code: "MI", name: "Michigan" }, { code: "MN", name: "Minnesota" },
+  { code: "MS", name: "Mississippi" }, { code: "MO", name: "Missouri" }, { code: "MT", name: "Montana" },
+  { code: "NE", name: "Nebraska" }, { code: "NV", name: "Nevada" }, { code: "NH", name: "New Hampshire" },
+  { code: "NJ", name: "New Jersey" }, { code: "NM", name: "New Mexico" }, { code: "NY", name: "New York" },
+  { code: "NC", name: "North Carolina" }, { code: "ND", name: "North Dakota" }, { code: "OH", name: "Ohio" },
+  { code: "OK", name: "Oklahoma" }, { code: "OR", name: "Oregon" }, { code: "PA", name: "Pennsylvania" },
+  { code: "PR", name: "Puerto Rico" }, { code: "RI", name: "Rhode Island" }, { code: "SC", name: "South Carolina" },
+  { code: "SD", name: "South Dakota" }, { code: "TN", name: "Tennessee" }, { code: "TX", name: "Texas" },
+  { code: "UT", name: "Utah" }, { code: "VT", name: "Vermont" }, { code: "VA", name: "Virginia" },
+  { code: "WA", name: "Washington" }, { code: "WV", name: "West Virginia" }, { code: "WI", name: "Wisconsin" },
+  { code: "WY", name: "Wyoming" },
+];
+
+
 export default function CheckoutPage() {
   const { items, totalPrice, clearCart } = useCart();
   const [step, setStep] = useState(0);
@@ -272,15 +298,38 @@ export default function CheckoutPage() {
                     }
                     required
                   />
-                  <Input
-                    label="State / Province"
-                    placeholder="NY"
-                    value={shipping.state}
-                    onChange={(e) =>
-                      setShipping({ ...shipping, state: e.target.value })
-                    }
-                    required
-                  />
+                  {shipping.country === "US" ? (
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-600 mb-1.5">
+                        State
+                      </label>
+                      <select
+                        className="input"
+                        value={shipping.state}
+                        onChange={(e) =>
+                          setShipping({ ...shipping, state: e.target.value })
+                        }
+                        required
+                      >
+                        <option value="">Select a state…</option>
+                        {US_STATES.map((s) => (
+                          <option key={s.code} value={s.code}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <Input
+                      label="State / Province"
+                      placeholder="Region"
+                      value={shipping.state}
+                      onChange={(e) =>
+                        setShipping({ ...shipping, state: e.target.value })
+                      }
+                      required
+                    />
+                  )}
                   <Input
                     label="ZIP / Postal Code"
                     placeholder="10001"
@@ -298,7 +347,7 @@ export default function CheckoutPage() {
                       className="input"
                       value={shipping.country}
                       onChange={(e) =>
-                        setShipping({ ...shipping, country: e.target.value })
+                        setShipping({ ...shipping, country: e.target.value, state: "" })
                       }
                     >
                       <option value="US">United States</option>
