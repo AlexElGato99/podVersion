@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getProducts } from "@/lib/printful";
+import { getStoreProducts } from "@/lib/products";
 import { createClient } from "@/lib/supabase/server";
 import ShopClient from "./ShopClient";
 
@@ -22,10 +22,10 @@ export const metadata = {
 };
 
 async function ShopWrapper() {
-  let products: Awaited<ReturnType<typeof getProducts>> = [];
+  let products: Awaited<ReturnType<typeof getStoreProducts>> = [];
   let categories: string[] = [];
   try {
-    products = await getProducts();
+    products = await getStoreProducts();
   } catch {
     // empty
   }

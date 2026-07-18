@@ -3,7 +3,7 @@ import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { getSettingsSection, invalidateSettingsCache } from "@/lib/settings";
 
-const SECTIONS = ["payments", "printful", "email", "analytics"] as const;
+const SECTIONS = ["payments", "printful", "printify", "general", "email", "analytics"] as const;
 type Section = (typeof SECTIONS)[number];
 
 // Field names holding real secrets — masked on read, and only overwritten
@@ -11,6 +11,8 @@ type Section = (typeof SECTIONS)[number];
 const SECRET_FIELDS: Record<Section, string[]> = {
   payments: ["paypal_client_secret"],
   printful: ["printful_api_key", "printful_webhook_secret"],
+  printify: ["printify_api_key"],
+  general: [],
   email: ["email_api_key"],
   analytics: ["meta_conversions_token"],
 };
@@ -51,6 +53,8 @@ export async function GET() {
   const settings: Record<Section, Record<string, string>> = {
     payments: {},
     printful: {},
+    printify: {},
+    general: {},
     email: {},
     analytics: {},
   };

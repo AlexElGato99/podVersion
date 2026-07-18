@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Eye, EyeOff, KeyRound, ShieldCheck, CreditCard, Package, Mail,
-  BarChart3, Save, Loader2,
+  BarChart3, Save, Loader2, Layers, Zap, CheckCircle2, XCircle,
 } from "lucide-react";
 
 type FieldKey = "current" | "next" | "confirm";
-type TabId = "security" | "payments" | "printful" | "email" | "analytics";
+type TabId = "security" | "payments" | "printful" | "printify" | "general" | "email" | "analytics";
 type IntegrationSection = Exclude<TabId, "security">;
 
 type Status =
@@ -30,12 +30,26 @@ interface FieldConfig {
 const TABS: { id: TabId; label: string; icon: typeof ShieldCheck }[] = [
   { id: "security", label: "Security", icon: ShieldCheck },
   { id: "payments", label: "Payments", icon: CreditCard },
+  { id: "general",  label: "Provider", icon: Layers },
   { id: "printful", label: "Printful API", icon: Package },
-  { id: "email", label: "Email", icon: Mail },
-  { id: "analytics", label: "Analytics", icon: BarChart3 },
+  { id: "printify", label: "Printify API", icon: Package },
+  { id: "email",    label: "Email", icon: Mail },
+  { id: "analytics",label: "Analytics", icon: BarChart3 },
 ];
 
 const SECTION_INFO: Record<IntegrationSection, { title: string; description: string; fields: FieldConfig[] }> = {
+  general: {
+    title: "Print-on-Demand provider",
+    description: "Choose which fulfillment service powers your store. Switching to 'Both' merges products from Printful and Printify on your shop pages.",
+    fields: [
+      {
+        key: "pod_provider",
+        label: "Active provider",
+        helper: "Printful, Printify, or Both.",
+        options: ["printful", "printify", "both"],
+      },
+    ],
+  },
   payments: {
     title: "Payment settings",
     description: "Credentials used to process checkout payments through PayPal.",
@@ -57,6 +71,14 @@ const SECTION_INFO: Record<IntegrationSection, { title: string; description: str
       { key: "printful_api_key", label: "Printful API Key", secret: true, helper: "Bearer token from Printful → Settings → Stores → API." },
       { key: "printful_store_id", label: "Printful Store ID" },
       { key: "printful_webhook_secret", label: "Webhook Secret", secret: true, helper: "Optional — validates incoming Printful webhook requests." },
+    ],
+  },
+  printify: {
+    title: "Printify API settings",
+    description: "Connection details used to sync products and create fulfillment orders with Printify.",
+    fields: [
+      { key: "printify_api_key", label: "Printify API Key", secret: true, helper: "Personal access token from Printify → My Profile → Connections → API access token." },
+      { key: "printify_shop_id", label: "Printify Shop ID", helper: "Leave blank to auto-detect from the first shop on your account." },
     ],
   },
   email: {
@@ -81,7 +103,7 @@ const SECTION_INFO: Record<IntegrationSection, { title: string; description: str
   },
 };
 
-const EMPTY_SECTION_MAP = { payments: {}, printful: {}, email: {}, analytics: {} } as Record<IntegrationSection, Record<string, string>>;
+const EMPTY_SECTION_MAP = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {} } as Record<IntegrationSection, Record<string, string>>;
 
 const RULES = [
   { label: "At least 8 characters", test: (v: string) => v.length >= 8 },
@@ -104,15 +126,17 @@ export default function SettingsPage() {
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [sectionStatus, setSectionStatus] = useState<Record<IntegrationSection, Status>>({
     payments: { kind: "idle" },
+    general:  { kind: "idle" },
     printful: { kind: "idle" },
+    printify: { kind: "idle" },
     email: { kind: "idle" },
     analytics: { kind: "idle" },
   });
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
 
   const applySettings = useCallback((settings: Partial<Record<IntegrationSection, Record<string, string>>>) => {
-    const nextValues = { payments: {}, printful: {}, email: {}, analytics: {} } as Record<IntegrationSection, Record<string, string>>;
-    const nextPlaceholders = { payments: {}, printful: {}, email: {}, analytics: {} } as Record<IntegrationSection, Record<string, string>>;
+    const nextValues = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {} } as Record<IntegrationSection, Record<string, string>>;
+    const nextPlaceholders = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {} } as Record<IntegrationSection, Record<string, string>>;
 
     (Object.keys(SECTION_INFO) as IntegrationSection[]).forEach((section) => {
       const fetched = settings[section] ?? {};
@@ -402,6 +426,32 @@ function IntegrationTab({
   onChange: (key: string, value: string) => void;
   onSave: () => void;
 }) {
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string; shops?: Array<{ id: number; title: string; sales_channel: string }> } | null>(null);
+
+  const testPrintify = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/admin/test-printify");
+      const json = await res.json();
+      if (!res.ok) {
+        setTestResult({ ok: false, message: json.error ?? "Connection failed." });
+      } else {
+        setTestResult({
+          ok: true,
+          message: `Connected! Active shop: "${json.active_shop_name}" (ID: ${json.active_shop_id})${
+            json.product_count !== null ? ` · ${json.product_count} products` : ""
+          }.`,
+          shops: json.all_shops,
+        });
+      }
+    } catch (e) {
+      setTestResult({ ok: false, message: (e as Error).message });
+    } finally {
+      setTesting(false);
+    }
+  };
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)] shadow-sm p-6 space-y-5">
       <div>
@@ -437,7 +487,45 @@ function IntegrationTab({
         </div>
       )}
 
+      {testResult && (
+        <div className={`text-xs font-medium px-3 py-2 rounded-lg space-y-1 ${
+          testResult.ok
+            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+            : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+        }`}>
+          <div className="flex items-start gap-2">
+            {testResult.ok ? <CheckCircle2 size={13} className="mt-0.5 shrink-0" /> : <XCircle size={13} className="mt-0.5 shrink-0" />}
+            {testResult.message}
+          </div>
+          {testResult.ok && testResult.shops && testResult.shops.length > 1 && (
+            <div className="pl-5 space-y-0.5">
+              <div className="font-semibold mb-1">All shops on this account:</div>
+              {testResult.shops.map((s) => (
+                <div key={s.id} className="flex items-center gap-2">
+                  <span className="font-mono">{s.id}</span>
+                  <span>—</span>
+                  <span>{s.title}</span>
+                  <span className="opacity-60">({s.sales_channel})</span>
+                </div>
+              ))}
+              <div className="opacity-70 pt-1">Enter the Shop ID of the store you want to use in the field above, then save.</div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-end pt-1">
+        {section === "printify" && (
+          <button
+            type="button"
+            onClick={testPrintify}
+            disabled={testing}
+            className="mr-auto inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
+          >
+            {testing ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
+            {testing ? "Testing…" : "Test connection"}
+          </button>
+        )}
         <button
           type="button"
           className="btn-primary"
@@ -474,8 +562,17 @@ function IntegrationField({
   onChange: (v: string) => void;
   onToggleReveal: () => void;
 }) {
+  // When a secret is already saved (placeholder is the masked value like "••••xxxx")
+  // and the user hasn't started typing a replacement, show a fixed mask in the
+  // field so it's visually obvious the key is set — not an empty box.
+  const isSaved = field.secret && placeholder !== "Not set" && placeholder !== "";
+  const [editing, setEditing] = useState(false);
+
+  // Reset editing state whenever placeholder changes (e.g. after a save + refresh)
+  useEffect(() => { setEditing(false); }, [placeholder]);
+
   const inputClasses =
-    "w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-brand-500 pr-10";
+    "w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-brand-500 pr-20";
 
   return (
     <label className="block space-y-1.5">
@@ -496,24 +593,58 @@ function IntegrationField({
         </select>
       ) : (
         <div className="relative">
-          <input
-            type={field.secret && !revealed ? "password" : "text"}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-            autoComplete="off"
-            spellCheck={false}
-            className={inputClasses}
-          />
-          {field.secret && (
-            <button
-              type="button"
-              onClick={onToggleReveal}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-              aria-label={revealed ? "Hide value" : "Show value"}
-            >
-              {revealed ? <EyeOff size={14} /> : <Eye size={14} />}
-            </button>
+          {/* Saved-state display: show a masked input + "Change" button */}
+          {isSaved && !editing ? (
+            <>
+              <input
+                type="text"
+                readOnly
+                value="••••••••••••••••"
+                className={inputClasses + " text-[var(--text-muted)] cursor-default select-none"}
+              />
+              <button
+                type="button"
+                onClick={() => { setEditing(true); onChange(""); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-2 h-7 text-xs font-semibold rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                Change
+              </button>
+            </>
+          ) : (
+            <>
+              <input
+                type={field.secret && !revealed ? "password" : "text"}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder={isSaved && editing ? "Enter new value to replace…" : placeholder}
+                autoComplete="off"
+                spellCheck={false}
+                autoFocus={editing}
+                className={inputClasses}
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                {isSaved && editing && (
+                  <button
+                    type="button"
+                    onClick={() => { setEditing(false); onChange(""); }}
+                    className="px-2 h-7 text-xs font-semibold rounded-md bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                    title="Cancel — keep existing key"
+                  >
+                    Cancel
+                  </button>
+                )}
+                {field.secret && (
+                  <button
+                    type="button"
+                    onClick={onToggleReveal}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                    aria-label={revealed ? "Hide value" : "Show value"}
+                  >
+                    {revealed ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}
@@ -521,7 +652,9 @@ function IntegrationField({
       {field.helper && <span className="text-[11px] text-[var(--text-muted)] block">{field.helper}</span>}
       {field.secret && (
         <span className="text-[11px] text-[var(--text-muted)] block">
-          {placeholder === "Not set" ? "Not set." : `Currently set (${placeholder}). Leave blank to keep it.`}
+          {isSaved
+            ? (editing ? "Type a new value to replace the saved key, or click Cancel to keep it." : `Saved — ends in ${placeholder.replace(/•/g, "")}. Click Change to replace it.`)
+            : "No key saved yet."}
         </span>
       )}
     </label>

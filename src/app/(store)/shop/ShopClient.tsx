@@ -6,7 +6,7 @@ import { SlidersHorizontal, Search, Grid3X3, LayoutList, X } from "lucide-react"
 import ProductCard from "@/components/ui/ProductCard";
 
 interface Product {
-  id: number;
+  id: number | string;
   name: string;
   thumbnail_url: string;
   starting_price: string | null;

@@ -13,7 +13,8 @@ import {
   HardHat,
   ShoppingBag,
 } from "lucide-react";
-import { getProducts, getCatalogCategories } from "@/lib/printful";
+import { getStoreProducts } from "@/lib/products";
+import { getCatalogCategories } from "@/lib/printful";
 import ProductCard from "@/components/ui/ProductCard";
 import { productSlug } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
@@ -155,7 +156,7 @@ const CARD_POS: Record<FloatingCard["position"], React.CSSProperties> = {
 
 async function getAllProducts() {
   try {
-    return await getProducts();
+    return await getStoreProducts();
   } catch {
     return [];
   }
@@ -531,7 +532,7 @@ export default async function HomePage() {
                     name={product.name}
                     price={product.starting_price ? parseFloat(product.starting_price) : 0}
                     imageUrl={product.best_image || product.thumbnail_url}
-                    freeShipping={product.id % 3 === 0}
+                    freeShipping={Number(product.id) % 3 === 0}
                     badge={
                       i === 0 && cat.badgeFirst ? cat.badgeFirst :
                       i === 1 && cat.badgeSecond ? cat.badgeSecond : undefined

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { getProduct } from "@/lib/printful";
+import { getStoreProduct } from "@/lib/products";
+import { printifyToProductDetail } from "@/lib/printify";
 import ProductClient from "./ProductClient";
 import type { Metadata } from "next";
 import { productIdFromSlug } from "@/lib/utils";
@@ -12,13 +13,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const productId = productIdFromSlug(id);
   try {
-    const product = await getProduct(productId);
+    const result = await getStoreProduct(productId);
+    const product = result.source === "printify" ? printifyToProductDetail(result.data) : result.data;
     const name = product.sync_product.name;
     const thumb = product.sync_variants?.[0]?.files?.find(f => f.type === "preview" && f.preview_url)?.preview_url
       ?? product.sync_product.thumbnail_url;
     const desc = product.sync_product.description
       ? `${product.sync_product.description.slice(0, 140)} Shop now at PrintDrop — free US shipping on orders $50+.`
-      : `Shop ${name} at PrintDrop — premium custom print-on-demand product. Printed & shipped by Printful. Free shipping on orders $50+.`;
+      : `Shop ${name} at PrintDrop — premium custom print-on-demand product. Free shipping on orders $50+.`;
     return {
       title: `${name} | PrintDrop`,
       description: desc.slice(0, 160),
@@ -44,7 +46,8 @@ export default async function ProductPage({ params }: Props) {
   const { id } = await params;
   const productId = productIdFromSlug(id);
   try {
-    const product = await getProduct(productId);
+    const result = await getStoreProduct(productId);
+    const product = result.source === "printify" ? printifyToProductDetail(result.data) : result.data;
     const name = product.sync_product.name;
     const price = product.sync_variants?.[0]?.retail_price ?? "0";
     const thumb = product.sync_variants?.[0]?.files?.find(f => f.type === "preview" && f.preview_url)?.preview_url

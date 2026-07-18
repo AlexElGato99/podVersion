@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-export type SettingsSection = "payments" | "printful" | "email" | "analytics";
+export type SettingsSection = "payments" | "printful" | "printify" | "general" | "email" | "analytics";
 
 // Created lazily (not at module load) and guarded — if these env vars are
 // missing/misconfigured (e.g. not set for the Vercel "Production" environment
@@ -38,6 +38,14 @@ const ENV_FALLBACKS: Record<SettingsSection, Record<string, string | undefined>>
     printful_api_key: process.env.PRINTFUL_API_KEY,
     printful_store_id: process.env.PRINTFUL_STORE_ID,
     printful_webhook_secret: process.env.PRINTFUL_WEBHOOK_SECRET,
+  },
+  printify: {
+    printify_api_key: process.env.PRINTIFY_API_KEY,
+    printify_shop_id: process.env.PRINTIFY_SHOP_ID,
+  },
+  general: {
+    /** "printful" | "printify" | "both" */
+    pod_provider: process.env.POD_PROVIDER ?? "printful",
   },
   email: {
     email_api_key: process.env.EMAIL_API_KEY,
