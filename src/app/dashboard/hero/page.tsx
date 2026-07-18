@@ -21,7 +21,7 @@ import {
   ImagePlus,
 } from "lucide-react";
 
-/* ─── Types ─────────────────────────────────────────────── */
+/* --- Types ----------------------------------------------- */
 interface FloatingCard {
   id: string;
   emoji: string;
@@ -65,21 +65,21 @@ const DEFAULTS: HeroSettings = {
   bg_to: "#fce8d5",
   main_image_url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&auto=format&fit=crop&q=80",
   floating_cards: [
-    { id: "1", emoji: "🐼", image_url: "", label: "", sublabel: "", bg: "#0d3d5f", bg_disabled: false, text_color: "#ffffff", position: "top-left" },
-    { id: "2", emoji: "👨‍🚀", image_url: "", label: "", sublabel: "", bg: "#d4eaff", bg_disabled: false, text_color: "#374151", position: "bottom-left" },
+    { id: "1", emoji: "??", image_url: "", label: "", sublabel: "", bg: "#0d3d5f", bg_disabled: false, text_color: "#ffffff", position: "top-left" },
+    { id: "2", emoji: "?????", image_url: "", label: "", sublabel: "", bg: "#d4eaff", bg_disabled: false, text_color: "#374151", position: "bottom-left" },
     { id: "3", emoji: "", image_url: "", label: "Company Name", sublabel: "Slogan Here", bg: "#ffffff", bg_disabled: false, text_color: "#374151", position: "top-right" },
-    { id: "4", emoji: "🚛", image_url: "", label: "", sublabel: "", bg: "#ffffff", bg_disabled: false, text_color: "#374151", position: "bottom-right" },
+    { id: "4", emoji: "??", image_url: "", label: "", sublabel: "", bg: "#ffffff", bg_disabled: false, text_color: "#374151", position: "bottom-right" },
   ],
 };
 
-/* ─── Shared style tokens ────────────────────────────────── */
+/* --- Shared style tokens ---------------------------------- */
 const inputStyle: React.CSSProperties = {
   width: "100%", padding: "8px 12px", borderRadius: 8,
   border: "1px solid var(--border)", background: "var(--bg-secondary)",
   color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box",
 };
 
-/* ─── ImageUploader component ────────────────────────────── */
+/* --- ImageUploader component ------------------------------ */
 function ImageUploader({
   currentUrl,
   slot,
@@ -102,7 +102,7 @@ function ImageUploader({
   const upload = useCallback(async (file: File) => {
     setUploading(true);
     setErr(null);
-    setProgress("Converting to WebP…");
+    setProgress("Converting to WebP�");
 
     const fd = new FormData();
     fd.append("file", file);
@@ -116,7 +116,7 @@ function ImageUploader({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Upload failed");
-      setProgress(`Done · ${json.original_size_kb}KB → ${json.size_kb}KB WebP`);
+      setProgress(`Done � ${json.original_size_kb}KB ? ${json.size_kb}KB WebP`);
       onUploaded(json.url);
       setTimeout(() => setProgress(null), 4000);
     } catch (e) {
@@ -153,7 +153,7 @@ function ImageUploader({
             <button
               onClick={() => inputRef.current?.click()}
               disabled={uploading}
-              style={{ fontSize: 11, color: "var(--purple)", cursor: "pointer", background: "none", border: "none", padding: 0, display: "flex", alignItems: "center", gap: 4 }}
+              style={{ fontSize: 11, color: "#ea580c", cursor: "pointer", background: "none", border: "none", padding: 0, display: "flex", alignItems: "center", gap: 4 }}
             >
               <Upload size={11} /> Replace image
             </button>
@@ -166,25 +166,25 @@ function ImageUploader({
           onDrop={(e) => { e.preventDefault(); setDragOver(false); onFile(e.dataTransfer.files); }}
           onClick={() => !uploading && inputRef.current?.click()}
           style={{
-            border: `2px dashed ${dragOver ? "var(--purple)" : "var(--border)"}`,
+            border: `2px dashed ${dragOver ? "#ea580c" : "var(--border)"}`,
             borderRadius: 10,
             padding: "20px 12px",
             textAlign: "center",
             cursor: uploading ? "wait" : "pointer",
-            background: dragOver ? "var(--purple-light)" : "var(--bg-secondary)",
+            background: dragOver ? "#fff7ed" : "var(--bg-secondary)",
             transition: "all 0.15s",
           }}
         >
           {uploading ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-              <Loader2 size={20} color="var(--purple)" style={{ animation: "spin 1s linear infinite" }} />
+              <Loader2 size={20} color="#ea580c" style={{ animation: "spin 1s linear infinite" }} />
               <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{progress}</span>
             </div>
           ) : (
             <>
               <ImagePlus size={22} color="var(--text-muted)" style={{ margin: "0 auto 6px" }} />
               <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>Click or drag & drop</p>
-              <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0 0" }}>JPG, PNG, GIF → auto-converted to WebP · max 5 MB</p>
+              <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0 0" }}>JPG, PNG, GIF ? auto-converted to WebP � max 5 MB</p>
             </>
           )}
         </div>
@@ -196,12 +196,12 @@ function ImageUploader({
   );
 }
 
-/* ─── SectionCard ────────────────────────────────────────── */
+/* --- SectionCard ------------------------------------------ */
 function SectionCard({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
   return (
     <div style={{ background: "var(--bg-primary)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, boxShadow: "var(--card-shadow)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-        <div style={{ width: 34, height: 34, borderRadius: 8, background: "var(--purple-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--purple)", flexShrink: 0 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 8, background: "#fff7ed", display: "flex", alignItems: "center", justifyContent: "center", color: "#ea580c", flexShrink: 0 }}>
           <Icon size={16} strokeWidth={1.75} />
         </div>
         <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>{title}</h3>
@@ -221,7 +221,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-/* ─── Main page ──────────────────────────────────────────── */
+/* --- Main page -------------------------------------------- */
 export default function HeroSettingsPage() {
   const [settings, setSettings] = useState<HeroSettings>(DEFAULTS);
   const [loading, setLoading] = useState(true);
@@ -275,7 +275,7 @@ export default function HeroSettingsPage() {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, gap: 10, color: "var(--text-muted)" }}>
         <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
-        Loading hero settings…
+        Loading hero settings�
       </div>
     );
   }
@@ -284,28 +284,28 @@ export default function HeroSettingsPage() {
 
   return (
     <div style={{ maxWidth: 920, margin: "0 auto" }} className="animate-fade-in">
-      {/* ── Header ── */}
+      {/* -- Header -- */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, gap: 16, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--purple-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--purple)" }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: "#fff7ed", display: "flex", alignItems: "center", justifyContent: "center", color: "#ea580c" }}>
             <LayoutTemplate size={20} strokeWidth={1.75} />
           </div>
           <div>
             <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Hero Section</h1>
-            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>Control every element of the store hero banner · images auto-converted to WebP</p>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>Control every element of the store hero banner � images auto-converted to WebP</p>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button onClick={() => setPreviewOpen(!previewOpen)} style={btnBase}><Eye size={14} />{previewOpen ? "Hide Preview" : "Preview"}</button>
           <button onClick={() => setSettings(DEFAULTS)} style={btnBase}><RefreshCcw size={14} />Reset</button>
-          <button onClick={save} disabled={saving} style={{ ...btnBase, border: "none", background: saving ? "var(--text-muted)" : "var(--purple)", color: "#fff", fontWeight: 600, cursor: saving ? "not-allowed" : "pointer" }}>
+          <button onClick={save} disabled={saving} style={{ ...btnBase, border: "none", background: saving ? "var(--text-muted)" : "#ea580c", color: "#fff", fontWeight: 600, cursor: saving ? "not-allowed" : "pointer" }}>
             {saving ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Save size={14} />}
-            {saving ? "Saving…" : "Save Changes"}
+            {saving ? "Saving�" : "Save Changes"}
           </button>
         </div>
       </div>
 
-      {/* ── Toast ── */}
+      {/* -- Toast -- */}
       {msg && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 10, marginBottom: 20, background: msg.type === "success" ? "var(--accent-light)" : "#fee2e2", color: msg.type === "success" ? "var(--accent-dark)" : "#dc2626", fontSize: 13, fontWeight: 500, border: `1px solid ${msg.type === "success" ? "var(--accent)" : "#fca5a5"}` }}>
           {msg.type === "success" ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
@@ -313,7 +313,7 @@ export default function HeroSettingsPage() {
         </div>
       )}
 
-      {/* ── Mini preview ── */}
+      {/* -- Mini preview -- */}
       {previewOpen && (
         <div style={{ marginBottom: 24, borderRadius: 12, overflow: "hidden", border: "1px solid var(--border)", boxShadow: "var(--card-shadow)" }}>
           <div style={{ padding: "8px 14px", background: "var(--bg-tertiary)", borderBottom: "1px solid var(--border)", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.05em", textTransform: "uppercase" }}>Live Preview</div>
@@ -323,7 +323,7 @@ export default function HeroSettingsPage() {
               <p style={{ fontSize: 13, color: "#4b5563", margin: "0 0 16px 0" }}>{settings.subtitle}</p>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 999, background: "#5b4fe9", color: "#fff", fontSize: 13, fontWeight: 600 }}>
-                  {settings.cta_primary_text} →
+                  {settings.cta_primary_text} ?
                 </div>
                 {settings.cta_secondary_text && (
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 999, border: "2px solid rgba(0,0,0,0.2)", background: "rgba(255,255,255,0.6)", color: "#1f2937", fontSize: 13, fontWeight: 600 }}>
@@ -341,7 +341,7 @@ export default function HeroSettingsPage() {
         </div>
       )}
 
-      {/* ── Form ── */}
+      {/* -- Form -- */}
       <div style={{ display: "grid", gap: 20 }}>
 
         {/* Headline + Subtitle */}
@@ -405,7 +405,7 @@ export default function HeroSettingsPage() {
               />
               <div style={{ marginTop: 12 }}>
                 <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Or paste a URL directly</label>
-                <input type="url" value={settings.main_image_url} onChange={(e) => set("main_image_url", e.target.value)} style={inputStyle} placeholder="https://…" />
+                <input type="url" value={settings.main_image_url} onChange={(e) => set("main_image_url", e.target.value)} style={inputStyle} placeholder="https://�" />
               </div>
             </div>
             <div>
@@ -431,7 +431,7 @@ export default function HeroSettingsPage() {
 
                 {/* Card header */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--purple)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#ea580c", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                     {POSITION_LABELS[card.position]}
                   </span>
                   {/* Mini preview */}
@@ -456,9 +456,9 @@ export default function HeroSettingsPage() {
                       style={{
                         flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
                         padding: "6px 0", borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: "pointer",
-                        border: `1px solid ${cardMode[card.id] === mode ? "var(--purple)" : "var(--border)"}`,
-                        background: cardMode[card.id] === mode ? "var(--purple-light)" : "var(--bg-primary)",
-                        color: cardMode[card.id] === mode ? "var(--purple)" : "var(--text-muted)",
+                        border: `1px solid ${cardMode[card.id] === mode ? "#ea580c" : "var(--border)"}`,
+                        background: cardMode[card.id] === mode ? "#fff7ed" : "var(--bg-primary)",
+                        color: cardMode[card.id] === mode ? "#ea580c" : "var(--text-muted)",
                         transition: "all 0.15s",
                       }}
                     >
@@ -473,7 +473,7 @@ export default function HeroSettingsPage() {
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <div>
                       <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Emoji</label>
-                      <input type="text" value={card.emoji} onChange={(e) => setCard(card.id, "emoji", e.target.value)} style={{ ...inputStyle, fontSize: 18, textAlign: "center" }} placeholder="🐼" />
+                      <input type="text" value={card.emoji} onChange={(e) => setCard(card.id, "emoji", e.target.value)} style={{ ...inputStyle, fontSize: 18, textAlign: "center" }} placeholder="??" />
                     </div>
                     <div>
                       <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Label</label>
@@ -508,12 +508,12 @@ export default function HeroSettingsPage() {
                         onClick={() => setCard(card.id, "bg_disabled", !card.bg_disabled)}
                         style={{
                           fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20, cursor: "pointer", border: "1px solid",
-                          borderColor: card.bg_disabled ? "var(--text-muted)" : "var(--purple)",
-                          background: card.bg_disabled ? "var(--bg-primary)" : "var(--purple-light)",
-                          color: card.bg_disabled ? "var(--text-muted)" : "var(--purple)",
+                          borderColor: card.bg_disabled ? "var(--text-muted)" : "#ea580c",
+                          background: card.bg_disabled ? "var(--bg-primary)" : "#fff7ed",
+                          color: card.bg_disabled ? "var(--text-muted)" : "#ea580c",
                           transition: "all 0.15s",
                         }}
-                        title={card.bg_disabled ? "Background disabled — click to enable" : "Click to disable background"}
+                        title={card.bg_disabled ? "Background disabled � click to enable" : "Click to disable background"}
                       >
                         {card.bg_disabled ? "Disabled" : "Enabled"}
                       </button>
@@ -537,12 +537,12 @@ export default function HeroSettingsPage() {
         </SectionCard>
       </div>
 
-      {/* ── Bottom save bar ── */}
+      {/* -- Bottom save bar -- */}
       <div style={{ marginTop: 28, padding: "16px 20px", background: "var(--bg-primary)", border: "1px solid var(--border)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, boxShadow: "var(--card-shadow)" }}>
         <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>Changes go live on the store homepage immediately after saving.</p>
-        <button onClick={save} disabled={saving} style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 22px", borderRadius: 8, border: "none", background: saving ? "var(--text-muted)" : "var(--purple)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer" }}>
+        <button onClick={save} disabled={saving} style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 22px", borderRadius: 8, border: "none", background: saving ? "var(--text-muted)" : "#ea580c", color: "#fff", fontSize: 14, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer" }}>
           {saving ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <Save size={15} />}
-          {saving ? "Saving…" : "Save Changes"}
+          {saving ? "Saving�" : "Save Changes"}
         </button>
       </div>
     </div>

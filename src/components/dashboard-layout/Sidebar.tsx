@@ -42,7 +42,7 @@ const navSections: NavSection[] = [
     title: "Frontend",
     items: [
       { label: "Hero Section", href: "/dashboard/hero", icon: Image },
-      { label: "Homepage Sections", href: "/dashboard/homepage-sections", icon: LayoutTemplate },
+      { label: "Sections", href: "/dashboard/homepage-sections", icon: LayoutTemplate },
       { label: "Categories", href: "/dashboard/categories", icon: LayoutGrid },
       { label: "SEO Settings", href: "/dashboard/seo", icon: Globe },
     ],
