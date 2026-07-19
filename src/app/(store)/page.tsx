@@ -1,5 +1,8 @@
 ﻿import Link from "next/link";
 import Image from "next/image";
+
+// Re-render at most every 60 seconds so newly added products appear quickly
+export const revalidate = 60;
 import {
   ArrowRight,
   Truck,

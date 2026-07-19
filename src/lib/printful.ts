@@ -13,7 +13,7 @@ async function printfulFetch(path: string, options: RequestInit = {}, retriesLef
       "X-PF-Store-Id": printful_store_id ?? "",
       ...options.headers,
     },
-    next: { revalidate: 300 }, // re-fetch every 5 minutes — product data changes rarely, and this keeps request volume well under Printful's rate limit
+    next: { revalidate: 60 }, // re-fetch every 60 seconds so newly published products appear quickly
   });
 
   if (res.status === 429 && retriesLeft > 0) {

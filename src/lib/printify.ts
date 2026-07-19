@@ -20,7 +20,7 @@ async function printifyFetch(path: string, options: RequestInit = {}) {
       "Content-Type": "application/json",
       ...options.headers,
     },
-    next: { revalidate: 300 },
+    next: { revalidate: 60 },
   });
 
   if (!res.ok) {
@@ -30,14 +30,31 @@ async function printifyFetch(path: string, options: RequestInit = {}) {
   return res.json();
 }
 
-async function getShopId(): Promise<string> {
+/**
+ * Returns all shop IDs to fetch from.
+ * - If printify_shop_id is blank → fetch from ALL shops on the account.
+ * - If printify_shop_id is a single ID → use just that one.
+ * - If printify_shop_id is comma-separated IDs → use all of them.
+ */
+async function getShopIds(): Promise<string[]> {
   const { printify_shop_id } = await getSettingsSection("printify");
-  if (printify_shop_id) return printify_shop_id;
-  // Auto-discover the first shop when no ID is configured
+
+  if (printify_shop_id) {
+    // Support comma-separated list: "12345, 67890"
+    return printify_shop_id.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+
+  // Auto-discover — use ALL shops on the account
   const data = await printifyFetch("/shops.json");
   const shops: Array<{ id: number; title: string }> = data ?? [];
   if (!shops.length) throw new Error("No Printify shops found for this account.");
-  return String(shops[0].id);
+  return shops.map((s) => String(s.id));
+}
+
+/** @deprecated Use getShopIds() for multi-shop support. */
+async function getShopId(): Promise<string> {
+  const ids = await getShopIds();
+  return ids[0];
 }
 
 // ─── Printify types ───────────────────────────────────────────────────────
@@ -112,15 +129,23 @@ async function getBlueprintTypeName(blueprintId: number): Promise<string | null>
 // ─── Public API ───────────────────────────────────────────────────────────
 
 export async function getPrintifyProducts(): Promise<PrintifyProduct[]> {
-  const shopId = await getShopId();
-  // Printify paginates — fetch up to 3 pages (300 products) to stay practical
-  const allProducts: PrintifyProduct[] = [];
-  for (let page = 1; page <= 3; page++) {
-    const data = await printifyFetch(`/shops/${shopId}/products.json?page=${page}&limit=100`);
-    const items: PrintifyProduct[] = data?.data ?? [];
-    allProducts.push(...items);
-    if (items.length < 100) break; // no more pages
-  }
+  const shopIds = await getShopIds();
+
+  // Fetch products from every shop in parallel, then merge
+  const perShop = await Promise.all(
+    shopIds.map(async (shopId) => {
+      const shopProducts: PrintifyProduct[] = [];
+      for (let page = 1; page <= 3; page++) {
+        const data = await printifyFetch(`/shops/${shopId}/products.json?page=${page}&limit=100`);
+        const items: PrintifyProduct[] = data?.data ?? [];
+        shopProducts.push(...items);
+        if (items.length < 100) break;
+      }
+      return shopProducts;
+    })
+  );
+
+  const allProducts = perShop.flat();
 
   // Resolve blueprint type name + compute starting_price / best_image
   const resolved = await Promise.all(

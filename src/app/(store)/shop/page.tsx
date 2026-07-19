@@ -1,4 +1,7 @@
 import { Suspense } from "react";
+
+// Re-render at most every 60 seconds so newly added products appear quickly
+export const revalidate = 60;
 import { getStoreProducts } from "@/lib/products";
 import { createClient } from "@/lib/supabase/server";
 import ShopClient from "./ShopClient";

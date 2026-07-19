@@ -78,7 +78,7 @@ const SECTION_INFO: Record<IntegrationSection, { title: string; description: str
     description: "Connection details used to sync products and create fulfillment orders with Printify.",
     fields: [
       { key: "printify_api_key", label: "Printify API Key", secret: true, helper: "Personal access token from Printify → My Profile → Connections → API access token." },
-      { key: "printify_shop_id", label: "Printify Shop ID", helper: "Leave blank to auto-detect from the first shop on your account." },
+      { key: "printify_shop_id", label: "Printify Shop ID(s)", helper: "Leave blank to use ALL shops automatically. To use specific shops, enter one ID or comma-separated IDs (e.g. 12345, 67890)." },
     ],
   },
   email: {
