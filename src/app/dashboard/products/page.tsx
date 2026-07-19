@@ -285,24 +285,7 @@ export default function ProductsPage() {
         id: String(p.id),
       }));
 
-      // Fetch full Printify product data to get all_images and colors
-      const enriched = await Promise.all(
-        raw.map(async (p) => {
-          if (p._source === "printify") {
-            try {
-              const id = String(p.id).replace("printify_", "");
-              // We already have all_images from the products list endpoint via toPrintifyCommonProduct
-              // Derive unique colors from the product data we already have
-              return p;
-            } catch {
-              return p;
-            }
-          }
-          return p;
-        })
-      );
-
-      setProducts(enriched);
+      setProducts(raw);
     } catch (e) {
       setError((e as Error).message);
     } finally {

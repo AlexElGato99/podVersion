@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { revalidatePath } from "next/cache";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,6 +32,10 @@ export async function POST(req: NextRequest) {
       .upsert({ ...body, updated_at: new Date().toISOString() }, { onConflict: "key" });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Homepage uses ISR; force immediate cache refresh so section updates
+  // (like max_products) are reflected right after saving from dashboard.
+  revalidatePath("/", "page");
 
   return NextResponse.json({ ok: true });
 }

@@ -236,6 +236,18 @@ async function getHomepageSections(): Promise<ProductCategory[]> {
   return PRODUCT_CATEGORIES;
 }
 
+function getSectionGridClass(maxProducts: number | undefined): string {
+  const max = maxProducts ?? 6;
+  if (max <= 3) return "lg:grid-cols-3";
+  if (max === 4) return "lg:grid-cols-4";
+  if (max === 5) return "lg:grid-cols-5";
+  if (max === 6) return "lg:grid-cols-6";
+  if (max === 8) return "lg:grid-cols-4 xl:grid-cols-8";
+  if (max >= 12) return "lg:grid-cols-4 xl:grid-cols-6";
+  // fallback for 7/9/10/11
+  return "lg:grid-cols-4 xl:grid-cols-6";
+}
+
 function classifyProduct(name: string, catalogTypeName?: string | null): CategoryKey {
   // Prefer the real Printful catalog product type (e.g. "Snapback Trucker
   // Cap", "Ceramic Mug") — it's authoritative and doesn't depend on however
@@ -505,6 +517,7 @@ export default async function HomePage() {
         const catProducts = byCategory[cat.key as CategoryKey].slice(0, cat.maxProducts ?? 6);
         if (catProducts.length === 0) return null;
         const Icon = cat.icon;
+        const sectionGridClass = getSectionGridClass(cat.maxProducts);
         const bgClass = cat.sectionBg === "zinc" ? "bg-zinc-50/60" : cat.sectionBg === "white" ? "bg-white" : sectionIdx % 2 === 0 ? "bg-white" : "bg-zinc-50/60";
         return (
           <section key={cat.key} className={`py-14 ${bgClass}`}>
@@ -527,7 +540,7 @@ export default async function HomePage() {
                 </Link>
               </div>
 
-              <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-6">
+              <div className={`grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 ${sectionGridClass}`}>
                 {catProducts.map((product, i) => (
                   <ProductCard
                     key={product.id}

@@ -44,19 +44,24 @@ export default async function AccountPage() {
     user.email?.split("@")[0] ||
     "User";
 
+  const [{ count: orderCount }, { count: wishlistCount }] = await Promise.all([
+    supabase.from("orders").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+    supabase.from("wishlist_items").select("product_id", { count: "exact", head: true }).eq("user_id", user.id),
+  ]);
+
   return (
-    <div className="pt-24 pb-16">
+    <div className="pt-32 pb-16">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         {/* Profile header */}
         <div className="card p-8 mb-8">
           <div className="flex items-center gap-6">
-            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-600 to-accent-600 text-3xl font-bold text-white shadow-lg shadow-brand-900/40">
+            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-orange-50 text-3xl font-bold text-orange-600">
               {displayName.charAt(0).toUpperCase()}
             </div>
             <div>
               <h1 className="text-2xl font-bold text-zinc-900">{displayName}</h1>
               <p className="text-zinc-500 mt-1">{user.email}</p>
-              <span className="mt-2 badge bg-brand-950/60 border border-brand-800/40 text-brand-600">
+              <span className="mt-2 badge bg-orange-50 text-orange-600">
                 <User className="h-3 w-3" />
                 Member
               </span>
@@ -65,8 +70,8 @@ export default async function AccountPage() {
 
           <div className="mt-8 grid grid-cols-3 gap-4">
             {[
-              { label: "Total Orders", value: "0" },
-              { label: "Wishlist Items", value: "0" },
+              { label: "Total Orders", value: String(orderCount ?? 0) },
+              { label: "Wishlist Items", value: String(wishlistCount ?? 0) },
               { label: "Points Earned", value: "0" },
             ].map((stat) => (
               <div
@@ -88,8 +93,8 @@ export default async function AccountPage() {
               href={href}
               className="card flex items-center gap-4 p-5 transition-all hover:border-zinc-300 hover:-translate-y-0.5 group"
             >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-950/60 border border-brand-800/40">
-                <Icon className="h-5 w-5 text-brand-600" />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50">
+                <Icon className="h-5 w-5 text-orange-600" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-zinc-900 group-hover:text-brand-500 transition-colors">

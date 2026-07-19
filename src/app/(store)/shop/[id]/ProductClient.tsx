@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ShoppingCart,
   Heart,
   Star,
@@ -23,6 +25,7 @@ import type { PrintfulProductDetail } from "@/lib/printful";
 
 interface ProductClientProps {
   product: PrintfulProductDetail;
+  productId: string;
 }
 
 const LIGHT_COLORS = new Set([
@@ -42,20 +45,12 @@ function isLightColor(hex: string, name: string): boolean {
   return (r * 299 + g * 587 + b * 114) / 1000 > 160;
 }
 
-export default function ProductClient({ product }: ProductClientProps) {
+export default function ProductClient({ product, productId }: ProductClientProps) {
   const { sync_product, sync_variants, all_images } = product;
   const { addItem } = useCart();
 
   const displayName        = sync_product.name;
   const displayDescription = sync_product.description;
-
-  const specs: string[] = [
-    "100% ring-spun cotton — soft, breathable & pre-shrunk",
-    "Direct-to-garment (DTG) print — vibrant, fade-resistant colors",
-    "Unisex relaxed fit — true to size",
-    "Machine wash cold inside-out, tumble dry low, no bleach",
-    "Printed & fulfilled by Printful — ships within 3–5 business days",
-  ];
 
   // Map: color → { hexCode, mockupImage, shirtImage }
   // mockupImage = real Printful-generated preview with your design (only some colors)
@@ -199,7 +194,76 @@ export default function ProductClient({ product }: ProductClientProps) {
 
   const [quantity, setQuantity] = useState(1);
   const [wishlist, setWishlist] = useState(false);
+  const [wishlistBusy, setWishlistBusy] = useState(false);
   const [added, setAdded] = useState(false);
+
+  const activeGalleryIndex = useMemo(() => {
+    if (!galleryImages.length) return -1;
+    const idx = galleryImages.indexOf(displayImage);
+    return idx >= 0 ? idx : 0;
+  }, [galleryImages, displayImage]);
+
+  const moveGallery = (direction: -1 | 1) => {
+    if (galleryImages.length < 2) return;
+    const current = activeGalleryIndex >= 0 ? activeGalleryIndex : 0;
+    const nextIndex = (current + direction + galleryImages.length) % galleryImages.length;
+    setPinnedImage(galleryImages[nextIndex]);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadWishlistState() {
+      try {
+        const res = await fetch(`/api/wishlist?product_id=${encodeURIComponent(productId)}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) setWishlist(!!json.liked);
+      } catch {
+        // non-auth users keep default state
+      }
+    }
+    loadWishlistState();
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
+
+  async function toggleWishlist(e: React.MouseEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    if (wishlistBusy) return;
+    const next = !wishlist;
+    setWishlistBusy(true);
+    try {
+      const res = await fetch("/api/wishlist", {
+        method: next ? "POST" : "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          next
+            ? {
+                product_id: productId,
+                product_name: displayName,
+                image_url: displayImage || sync_product.thumbnail_url || null,
+                price: Number.isFinite(price) ? price : null,
+                currency,
+                source: productId.startsWith("printify_") ? "printify" : "printful",
+              }
+            : { product_id: productId }
+        ),
+      });
+
+      if (res.status === 401) {
+        window.location.href = `/auth/login?next=${encodeURIComponent(window.location.pathname)}`;
+        return;
+      }
+
+      if (!res.ok) return;
+      setWishlist(next);
+    } catch {
+      // keep state unchanged on network error
+    } finally {
+      setWishlistBusy(false);
+    }
+  }
 
   function handleAddToCart() {
     addItem({
@@ -231,9 +295,9 @@ export default function ProductClient({ product }: ProductClientProps) {
               <span className="truncate max-w-[220px]">{displayName}</span>
         </nav>
 
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 xl:gap-16">
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 lg:items-stretch xl:gap-16">
           {/* Image gallery */}
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 lg:h-full">
             {/* Main image */}
             <div className="relative aspect-square overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-100">
               <Image
@@ -246,7 +310,8 @@ export default function ProductClient({ product }: ProductClientProps) {
                 unoptimized
               />
               <button
-                onClick={() => setWishlist(!wishlist)}
+                onClick={toggleWishlist}
+                disabled={wishlistBusy}
                 aria-label={wishlist ? "Remove from wishlist" : "Add to wishlist"}
                 className={cn(
                   "absolute top-4 right-4 h-10 w-10 flex items-center justify-center rounded-full shadow-md backdrop-blur-sm transition-all",
@@ -257,6 +322,27 @@ export default function ProductClient({ product }: ProductClientProps) {
               >
                 <Heart className={cn("h-5 w-5", wishlist && "fill-red-500")} />
               </button>
+
+              {galleryImages.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => moveGallery(-1)}
+                    aria-label="Previous product image"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-white/90 border border-zinc-200 text-zinc-700 shadow-sm hover:bg-white transition-colors flex items-center justify-center"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveGallery(1)}
+                    aria-label="Next product image"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-white/90 border border-zinc-200 text-zinc-700 shadow-sm hover:bg-white transition-colors flex items-center justify-center"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Thumbnail strip */}
@@ -289,10 +375,30 @@ export default function ProductClient({ product }: ProductClientProps) {
                 })}
               </div>
             )}
+
+            {/* Features grid */}
+            <div className="mt-auto grid grid-cols-2 gap-3 pt-3 border-t border-zinc-100">
+              {[
+                { icon: Truck,       label: "Free Shipping",     sub: "On orders over $50" },
+                { icon: ShieldCheck, label: "Secure Checkout",   sub: "SSL encrypted payment" },
+                { icon: RotateCcw,   label: "30-Day Returns",    sub: "No questions asked" },
+                { icon: Package,     label: "Ships in 3-5 days", sub: "Fulfilled by Printful" },
+              ].map(({ icon: Icon, label, sub }) => (
+                <div key={label} className="flex items-start gap-3 p-3 rounded-xl bg-zinc-50">
+                  <div className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg bg-white border border-zinc-200">
+                    <Icon className="h-4 w-4 text-brand-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-zinc-800">{label}</p>
+                    <p className="text-[11px] text-zinc-400 mt-0.5">{sub}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Product details */}
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-6 lg:h-full lg:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-brand-600 mb-1">PrintDrop Original</p>
               <h1 className="text-3xl font-extrabold leading-tight text-zinc-900 sm:text-[34px]">
@@ -319,22 +425,10 @@ export default function ProductClient({ product }: ProductClientProps) {
               <span className="text-xs font-bold text-brand-600 bg-brand-50 rounded-full px-2 py-0.5">Save 17%</span>
             </div>
 
-            {displayDescription && (
-              <div
-                className="text-sm text-zinc-600 leading-relaxed border-l-2 border-zinc-200 pl-3 [&_br]:block [&_ul]:list-disc [&_ul]:pl-4 [&_li]:my-0.5 [&_p]:mb-2"
-                dangerouslySetInnerHTML={{ __html: displayDescription }}
-              />
-            )}
+            {/* Product info tabs (compact, inside right column) */}
+            <ProductInfoTabs description={displayDescription} productName={displayName} compact />
 
-            {/* Product Specs — indexed by Google for long-tail product queries */}
-            <ul className="space-y-2">
-              {specs.map((spec) => (
-                <li key={spec} className="flex items-start gap-2 text-sm text-zinc-600">
-                  <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" strokeWidth={2.5} />
-                  {spec}
-                </li>
-              ))}
-            </ul>
+
 
             {/* Color picker */}
             {hasColors && (
@@ -478,7 +572,8 @@ export default function ProductClient({ product }: ProductClientProps) {
                 )}
               </button>
               <button
-                onClick={() => setWishlist(!wishlist)}
+                onClick={toggleWishlist}
+                disabled={wishlistBusy}
                 aria-label={wishlist ? "Remove from wishlist" : "Save to wishlist"}
                 className={cn(
                   "h-12 w-12 flex items-center justify-center rounded-xl border-2 transition-all duration-150 shrink-0",
@@ -491,34 +586,86 @@ export default function ProductClient({ product }: ProductClientProps) {
               </button>
             </div>
 
-            {/* Trust badges */}
-            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-zinc-100">
-              {[
-                { icon: Truck,       label: "Free Shipping",     sub: "On orders over $50" },
-                { icon: ShieldCheck, label: "Secure Checkout",   sub: "SSL encrypted payment" },
-                { icon: RotateCcw,   label: "30-Day Returns",    sub: "No questions asked" },
-                { icon: Package,     label: "Ships in 3-5 days", sub: "Fulfilled by Printful" },
-              ].map(({ icon: Icon, label, sub }) => (
-                <div key={label} className="flex items-start gap-3 p-3 rounded-xl bg-zinc-50">
-                  <div className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg bg-white border border-zinc-200">
-                    <Icon className="h-4 w-4 text-brand-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-zinc-800">{label}</p>
-                    <p className="text-[11px] text-zinc-400 mt-0.5">{sub}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
 
-        {/* FAQ Section — structured data for Google rich results */}
-        <FaqSection productName={displayName} />
       </div>
     </div>
   );
 }
+
+/* ─── Description parser ──────────────────────────────────── */
+
+/**
+ * Parses the product description HTML from Printify / Printful into named
+ * sections. Printify descriptions follow the pattern:
+ *
+ *   Intro text...<br/><br/>
+ *   Product features<br/>- item<br/>- item<br/><br/>
+ *   Care instructions<br/>- Machine wash...<br/>
+ *
+ * We normalise the raw HTML into text, split on known section headers, then
+ * return each section as trimmed HTML so we can render it directly.
+ */
+function parseDescriptionSections(html: string): {
+  intro: string;
+  features: string[];
+  care: string[];
+  extra: string;
+} {
+  if (!html) return { intro: "", features: [], care: [], extra: "" };
+
+  // Convert to plain text (preserve newlines from <br/>)
+  const text = html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"');
+
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+
+  const FEATURE_HEADERS = /^product features?$/i;
+  const CARE_HEADERS    = /^care instructions?$/i;
+
+  const result = { intro: "", features: [] as string[], care: [] as string[], extra: "" };
+  let section: "intro" | "features" | "care" | "extra" = "intro";
+  const introBuf: string[] = [];
+  const extraBuf: string[] = [];
+
+  for (const line of lines) {
+    if (FEATURE_HEADERS.test(line)) { section = "features"; continue; }
+    if (CARE_HEADERS.test(line))    { section = "care";     continue; }
+
+    // Bullet items start with "- " or "• "
+    const bullet = line.replace(/^[-•]\s*/, "");
+
+    if (section === "intro")     { introBuf.push(line); }
+    else if (section === "features") {
+      if (bullet !== line || result.features.length > 0) result.features.push(bullet);
+      else introBuf.push(line); // text before first bullet → intro
+    }
+    else if (section === "care") { result.care.push(bullet); }
+    else                         { extraBuf.push(line); }
+
+    // Once we've seen "Care instructions" header, subsequent non-bullet content goes to extra
+    if (section === "care" && bullet === line && result.care.length === 0) {
+      section = "extra";
+      extraBuf.push(line);
+      result.care.pop();
+    }
+  }
+
+  result.intro = introBuf.join("\n\n");
+  result.extra = extraBuf.join("\n\n");
+  return result;
+}
+
+/* ─── FAQ (static — shipping/returns don't come from the product API) ─── */
 
 const FAQ_ITEMS = [
   {
@@ -543,8 +690,23 @@ const FAQ_ITEMS = [
   },
 ];
 
-function FaqSection({ productName }: { productName: string }) {
-  const [openIdx, setOpenIdx] = useState<number | null>(null);
+const TABS = ["Description", "Features", "Care Instructions", "FAQ"] as const;
+type TabId = (typeof TABS)[number];
+
+function ProductInfoTabs({
+  description,
+  productName,
+  compact = false,
+}: {
+  description: string;
+  productName: string;
+  compact?: boolean;
+}) {
+  const [active, setActive] = useState<TabId>("Description");
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const sections = useMemo(() => parseDescriptionSections(description), [description]);
+
   const faqSchema = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -555,31 +717,117 @@ function FaqSection({ productName }: { productName: string }) {
     })),
   };
 
+  // Only show tabs that have content
+  const visibleTabs = TABS.filter((tab) => {
+    if (tab === "Description") return !!sections.intro;
+    if (tab === "Features")    return sections.features.length > 0;
+    if (tab === "Care Instructions") return sections.care.length > 0;
+    return true; // FAQ always shown
+  });
+
+  // If active tab became hidden, fall back to first visible
+  const resolvedActive = (visibleTabs as readonly string[]).includes(active)
+    ? active
+    : visibleTabs[0] ?? "FAQ";
+
   return (
-    <section className="mt-16 border-t border-zinc-100 pt-12">
+    <section className={cn(
+      compact
+        ? "p-0"
+        : "mt-16 border-t border-zinc-100 pt-10 max-w-4xl mx-auto"
+    )}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
-      <h2 className="text-xl font-bold text-zinc-900 mb-6">
-        Frequently Asked Questions about {productName}
-      </h2>
-      <div className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200 overflow-hidden">
-        {FAQ_ITEMS.map((item, idx) => (
-          <div key={idx}>
-            <button
-              onClick={() => setOpenIdx(openIdx === idx ? null : idx)}
-              className="w-full flex items-center justify-between gap-4 px-6 py-4 text-left hover:bg-zinc-50 transition-colors"
-            >
-              <span className="text-sm font-semibold text-zinc-800">{item.q}</span>
-              <ChevronDown
-                className={cn("h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-200", openIdx === idx && "rotate-180")}
-              />
-            </button>
-            {openIdx === idx && (
-              <div className="px-6 pb-5">
-                <p className="text-sm text-zinc-600 leading-relaxed">{item.a}</p>
-              </div>
+
+      {/* Tab strip */}
+      <div className={cn(
+        "flex flex-wrap border-b border-zinc-200",
+        compact ? "gap-1 mb-4" : "gap-2 mb-8"
+      )}>
+        {visibleTabs.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActive(tab)}
+            className={cn(
+              "font-semibold whitespace-nowrap transition-colors border-b-2 -mb-px",
+              compact ? "px-3 py-2 text-xs" : "px-6 py-3 text-sm",
+              resolvedActive === tab
+                ? "border-brand-600 text-brand-600"
+                : "border-transparent text-zinc-500 hover:text-zinc-800"
             )}
-          </div>
+          >
+            {tab}
+          </button>
         ))}
+      </div>
+
+      {/* Tab panels */}
+      <div className={cn("w-full", compact ? "max-w-none" : "max-w-2xl") }>
+      {resolvedActive === "Description" && (
+        <div className={cn(compact ? "max-w-none" : "max-w-3xl")}>
+          <p className={cn("text-zinc-600 leading-relaxed whitespace-pre-line", compact ? "text-xs" : "text-sm")}>
+            {sections.intro}
+          </p>
+          {sections.extra && (
+            <p className={cn("text-zinc-500 leading-relaxed whitespace-pre-line", compact ? "text-xs mt-2.5" : "text-sm mt-4")}>
+              {sections.extra}
+            </p>
+          )}
+        </div>
+      )}
+
+      {resolvedActive === "Features" && (
+        <ul className={cn(compact ? "max-w-none space-y-2" : "max-w-2xl space-y-3")}>
+          {sections.features.map((feat, i) => (
+            <li key={i} className="flex items-start gap-3">
+              <span className="mt-0.5 h-5 w-5 flex items-center justify-center rounded-full bg-orange-50 shrink-0">
+                <Check className="h-3 w-3 text-orange-600" strokeWidth={3} />
+              </span>
+              <span className={cn("text-zinc-700 leading-relaxed", compact ? "text-xs" : "text-sm")}>{feat}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {resolvedActive === "Care Instructions" && (
+        <ul className={cn(compact ? "max-w-none space-y-2" : "max-w-2xl space-y-3")}>
+          {sections.care.map((item, i) => (
+            <li key={i} className="flex items-start gap-3">
+              <span className="mt-0.5 h-5 w-5 flex items-center justify-center rounded-full bg-orange-50 shrink-0">
+                <Check className="h-3 w-3 text-orange-600" strokeWidth={3} />
+              </span>
+              <span className={cn("text-zinc-700 leading-relaxed", compact ? "text-xs" : "text-sm")}>{item}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {resolvedActive === "FAQ" && (
+        <div className={cn(compact ? "max-w-none" : "max-w-2xl")}>
+          <h2 className={cn("font-bold text-zinc-900", compact ? "text-sm mb-3" : "text-base mb-5")}>
+            Frequently asked questions about {productName}
+          </h2>
+          <div className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200 overflow-hidden">
+            {FAQ_ITEMS.map((item, idx) => (
+              <div key={idx}>
+                <button
+                  onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
+                  className={cn(
+                    "w-full flex items-center justify-between gap-4 text-left hover:bg-zinc-50 transition-colors",
+                    compact ? "px-3 py-2.5" : "px-5 py-4"
+                  )}
+                >
+                  <span className={cn("font-semibold text-zinc-800", compact ? "text-xs" : "text-sm")}>{item.q}</span>
+                </button>
+                {openFaq === idx && (
+                  <div className={cn(compact ? "px-3 pb-3" : "px-5 pb-5")}>
+                    <p className={cn("text-zinc-600 leading-relaxed", compact ? "text-xs" : "text-sm")}>{item.a}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       </div>
     </section>
   );

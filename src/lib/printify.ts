@@ -178,6 +178,31 @@ export async function getPrintifyShopId(): Promise<string> {
 
 /** Map a Printify product into the common shape used by the storefront. */
 export function toPrintifyCommonProduct(p: PrintifyProduct) {
+  // Deduplicate all mockup images with their variant associations
+  const seen = new Set<string>();
+  const all_images: Array<{ src: string; variant_ids: number[] }> = [];
+  for (const img of p.images) {
+    if (img.src && !seen.has(img.src)) {
+      seen.add(img.src);
+      all_images.push({ src: img.src, variant_ids: img.variant_ids ?? [] });
+    }
+  }
+
+  // Unique enabled color names
+  const colorOption = p.options.find((o) => o.type === "color" || o.name.toLowerCase().includes("color"));
+  const colorValueIds = new Set(colorOption?.values.map((v) => v.id) ?? []);
+  const seenColors = new Set<string>();
+  const colors: string[] = [];
+  for (const v of p.variants) {
+    if (!v.is_enabled) continue;
+    for (const optId of v.options) {
+      if (colorValueIds.has(optId)) {
+        const title = colorOption?.values.find((cv) => cv.id === optId)?.title;
+        if (title && !seenColors.has(title)) { seenColors.add(title); colors.push(title); }
+      }
+    }
+  }
+
   return {
     id: `printify_${p.id}`,
     name: p.title,
@@ -187,6 +212,8 @@ export function toPrintifyCommonProduct(p: PrintifyProduct) {
     starting_price: p.starting_price,
     best_image: p.best_image,
     catalog_type_name: p.catalog_type_name,
+    all_images,
+    colors,
     _source: "printify" as const,
     _raw: p,
   };
