@@ -43,7 +43,7 @@ function isLightColor(hex: string, name: string): boolean {
 }
 
 export default function ProductClient({ product }: ProductClientProps) {
-  const { sync_product, sync_variants } = product;
+  const { sync_product, sync_variants, all_images } = product;
   const { addItem } = useCart();
 
   const displayName        = sync_product.name;
@@ -128,6 +128,8 @@ export default function ProductClient({ product }: ProductClientProps) {
 
   const [selectedColor, setSelectedColor] = useState<string>(defaultColor);
   const [selectedSize,  setSelectedSize]  = useState<string>(sizes[0] ?? "");
+  // null = derive from selected color; string = user explicitly picked a gallery thumbnail
+  const [pinnedImage, setPinnedImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (defaultColor) setSelectedColor(defaultColor);
@@ -142,12 +144,32 @@ export default function ProductClient({ product }: ProductClientProps) {
     }) ?? sync_variants[0];
   }, [sync_variants, selectedColor, selectedSize, hasColors, hasSizes]);
 
-  // No separate selectedImage state needed — main image is derived from selectedColor
-  // (kept only for cart imageUrl)
-  const displayImage = (() => {
+  // Derive main image: pinned thumbnail > color mockup > thumbnail
+  const derivedImage = (() => {
     const cd = colorDataMap.get(selectedColor);
     return cd?.mockupImage ?? cd?.shirtImage ?? sync_product.thumbnail_url ?? "";
   })();
+  const displayImage = pinnedImage ?? derivedImage;
+
+  // When color changes, clear any manually pinned image
+  const handleColorChange = (color: string) => {
+    setSelectedColor(color);
+    setPinnedImage(null);
+  };
+
+  // Gallery: all_images (Printify) OR per-color mockups (Printful)
+  const galleryImages: string[] = useMemo(() => {
+    if (all_images && all_images.length > 1) return all_images;
+    // Printful: collect unique mockups per color
+    const seen = new Set<string>();
+    const imgs: string[] = [];
+    for (const [, cd] of colorDataMap) {
+      const src = cd.mockupImage ?? cd.shirtImage;
+      if (src && !seen.has(src)) { seen.add(src); imgs.push(src); }
+    }
+    if (sync_product.thumbnail_url && !seen.has(sync_product.thumbnail_url)) imgs.push(sync_product.thumbnail_url);
+    return imgs;
+  }, [all_images, colorDataMap, sync_product.thumbnail_url]);
   const [quantity, setQuantity] = useState(1);
   const [wishlist, setWishlist] = useState(false);
   const [added, setAdded] = useState(false);
@@ -184,36 +206,18 @@ export default function ProductClient({ product }: ProductClientProps) {
 
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 xl:gap-16">
           {/* Image gallery */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
+            {/* Main image */}
             <div className="relative aspect-square overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-100">
-              {(() => {
-                const cd = colorDataMap.get(selectedColor);
-                // Priority: real design mockup → catalog shirt in correct color → thumbnail → placeholder
-                const src = cd?.mockupImage ?? cd?.shirtImage ?? sync_product.thumbnail_url ?? "/placeholder-product.jpg";
-                return (
-                  <>
-                    <Image
-                      src={src}
-                      alt={`${displayName} in ${selectedColor}`}
-                      fill
-                      sizes="(max-width: 1024px) 100vw, 50vw"
-                      className="object-cover transition-opacity duration-300"
-                      priority
-                      unoptimized
-                    />
-                    {/* Badge: shown when no design mockup exists for this color */}
-                    {cd && !cd.mockupImage && (
-                      <div className="absolute bottom-4 left-4 flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-sm border border-zinc-200 px-3 py-1.5 shadow-sm">
-                        {cd.hexCode && (
-                          <span className="h-3 w-3 rounded-full border border-zinc-300" style={{ background: cd.hexCode }} />
-                        )}
-                        <span className="text-xs font-medium text-zinc-700">{selectedColor}</span>
-                        <span className="text-xs text-zinc-400">· preview</span>
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
+              <Image
+                src={displayImage || "/placeholder-product.jpg"}
+                alt={`${displayName}${selectedColor ? ` in ${selectedColor}` : ""}`}
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover transition-opacity duration-300"
+                priority
+                unoptimized
+              />
               <button
                 onClick={() => setWishlist(!wishlist)}
                 aria-label={wishlist ? "Remove from wishlist" : "Add to wishlist"}
@@ -227,6 +231,37 @@ export default function ProductClient({ product }: ProductClientProps) {
                 <Heart className={cn("h-5 w-5", wishlist && "fill-red-500")} />
               </button>
             </div>
+
+            {/* Thumbnail strip */}
+            {galleryImages.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {galleryImages.map((src, i) => {
+                  const isActive = (pinnedImage ?? derivedImage) === src;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setPinnedImage(src === derivedImage && !pinnedImage ? null : src)}
+                      className={cn(
+                        "relative shrink-0 h-16 w-16 rounded-xl overflow-hidden border-2 transition-all duration-150 focus:outline-none",
+                        isActive
+                          ? "border-brand-600 ring-2 ring-brand-200"
+                          : "border-zinc-200 hover:border-zinc-400"
+                      )}
+                      aria-label={`View image ${i + 1}`}
+                    >
+                      <Image
+                        src={src}
+                        alt={`${displayName} mockup ${i + 1}`}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                        sizes="64px"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Product details */}
@@ -292,10 +327,7 @@ export default function ProductClient({ product }: ProductClientProps) {
                       <button
                         key={color}
                         title={color}
-                        onClick={() => {
-                          setSelectedColor(color);
-                          // image is derived — no setSelectedImage needed
-                        }}
+                        onClick={() => handleColorChange(color)}
                         className={cn(
                           "relative h-9 w-9 rounded-full transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2",
                           isSelected ? "ring-2 ring-offset-2 ring-brand-600 scale-110" : "hover:scale-110 ring-1 ring-zinc-300"

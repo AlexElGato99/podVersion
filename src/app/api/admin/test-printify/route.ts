@@ -28,8 +28,6 @@ export async function GET() {
 
   const headers = {
     Authorization: `Bearer ${printify_api_key}`,
-    "Content-Type": "application/json",
-  };
 
   try {
     // 1. Verify key by fetching shops
@@ -51,23 +49,29 @@ export async function GET() {
     const shopId = printify_shop_id || String(shops[0].id);
     const activeShop = shops.find((s) => String(s.id) === shopId) ?? shops[0];
 
-    // 3. Fetch product count for the active shop
-    const productsRes = await fetch(
-      `https://api.printify.com/v1/shops/${activeShop.id}/products.json?page=1&limit=1`,
-      { headers }
+    // 3. Fetch product count for the active shop + error details for ALL shops
+    const shopDetails = await Promise.all(
+      shops.map(async (s) => {
+        const r = await fetch(
+          `https://api.printify.com/v1/shops/${s.id}/products.json?page=1&limit=1`,
+          { headers }
+        );
+        const rawBody = await r.text();
+        if (!r.ok) {
+          return { id: s.id, title: s.title, sales_channel: s.sales_channel, error: `HTTP ${r.status}`, error_body: rawBody };
+        }
+        const d = JSON.parse(rawBody);
+        return { id: s.id, title: s.title, sales_channel: s.sales_channel, product_count: d?.total ?? 0 };
+      })
     );
-    let productCount: number | null = null;
-    if (productsRes.ok) {
-      const data = await productsRes.json();
-      productCount = data?.total ?? null;
-    }
+
+    const activeDetail = shopDetails.find((s) => s.id === activeShop.id);
 
     return NextResponse.json({
-      ok: true,
+      ok: !activeDetail?.error,
       active_shop_id: activeShop.id,
       active_shop_name: activeShop.title,
-      product_count: productCount,
-      all_shops: shops.map((s) => ({ id: s.id, title: s.title, sales_channel: s.sales_channel })),
+      all_shops: shopDetails,
     });
   } catch (err) {
     return NextResponse.json({ error: `Connection failed: ${(err as Error).message}` }, { status: 500 });

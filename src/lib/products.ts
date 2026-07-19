@@ -30,13 +30,18 @@ export async function getStoreProducts(): Promise<CommonProduct[]> {
   const general = await getSettingsSection("general");
   const provider = (general.pod_provider ?? "printful").toLowerCase();
 
+  // Debug log so you can see in the server console exactly what's happening
+  console.log(`[products] pod_provider=${provider}`);
+
   const usePrintful = provider === "printful" || provider === "both";
   const usePrintify = provider === "printify" || provider === "both";
 
   const [printfulList, printifyList] = await Promise.all([
-    usePrintful ? getPrintfulProducts().catch(() => []) : Promise.resolve([]),
-    usePrintify ? getPrintifyProducts().catch(() => []) : Promise.resolve([]),
+    usePrintful ? getPrintfulProducts().catch((e) => { console.error("[products] Printful error:", e.message); return []; }) : Promise.resolve([]),
+    usePrintify ? getPrintifyProducts().catch((e) => { console.error("[products] Printify error:", e.message); return []; }) : Promise.resolve([]),
   ]);
+
+  console.log(`[products] Printful: ${printfulList.length} products, Printify: ${printifyList.length} products`);
 
   return [
     ...printfulList.map((p) => ({ ...p, id: p.id, name: p.name, _source: "printful" as const })),

@@ -13,18 +13,22 @@ async function printifyFetch(path: string, options: RequestInit = {}) {
   const { printify_api_key } = await getSettingsSection("printify");
   if (!printify_api_key) throw new Error("Printify API key is not configured.");
 
+  const isGet = !options.method || options.method.toUpperCase() === "GET";
+
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers: {
       Authorization: `Bearer ${printify_api_key}`,
-      "Content-Type": "application/json",
+      // Don't send Content-Type on GET requests — some Printify endpoints return 400 if you do
+      ...(isGet ? {} : { "Content-Type": "application/json" }),
       ...options.headers,
     },
     next: { revalidate: 60 },
   });
 
   if (!res.ok) {
-    throw new Error(`Printify API error ${res.status}: ${await res.text()}`);
+    const body = await res.text();
+    throw new Error(`Printify API error ${res.status} on ${path}: ${body}`);
   }
 
   return res.json();
@@ -136,10 +140,10 @@ export async function getPrintifyProducts(): Promise<PrintifyProduct[]> {
     shopIds.map(async (shopId) => {
       const shopProducts: PrintifyProduct[] = [];
       for (let page = 1; page <= 3; page++) {
-        const data = await printifyFetch(`/shops/${shopId}/products.json?page=${page}&limit=100`);
+        const data = await printifyFetch(`/shops/${shopId}/products.json?page=${page}&limit=50`);
         const items: PrintifyProduct[] = data?.data ?? [];
         shopProducts.push(...items);
-        if (items.length < 100) break;
+        if (items.length < 50) break;
       }
       return shopProducts;
     })
@@ -250,6 +254,9 @@ export function printifyToProductDetail(p: PrintifyProduct): import("./printful"
 
   const defaultImage = p.images.find((i) => i.is_default) ?? p.images[0];
 
+  // Deduplicate all mockup image URLs for the gallery strip
+  const allImages = [...new Set(p.images.map((i) => i.src).filter(Boolean))];
+
   return {
     sync_product: {
       id: 0,
@@ -260,5 +267,6 @@ export function printifyToProductDetail(p: PrintifyProduct): import("./printful"
       synced: sync_variants.length,
     },
     sync_variants,
+    all_images: allImages,
   };
 }
