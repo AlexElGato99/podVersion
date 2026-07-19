@@ -24,45 +24,69 @@ export async function GET() {
   const printify = await getSettingsSection("printify");
   const printful = await getSettingsSection("printful");
 
-  const provider = general.pod_provider ?? "(not set — defaults to printful)";
+  const provider = general.pod_provider || "printful";
 
   const result: Record<string, unknown> = {
-    active_provider: provider,
-    printful: {
+    "1_active_provider": provider,
+    "2_printful": {
       api_key_set: !!printful.printful_api_key,
       store_id: printful.printful_store_id || "(not set)",
     },
-    printify: {
+    "3_printify": {
       api_key_set: !!printify.printify_api_key,
-      shop_id: printify.printify_shop_id || "(not set — will auto-detect)",
+      shop_id_setting: printify.printify_shop_id || "(blank = auto-detect all shops)",
     },
   };
 
-  // Try live Printify fetch to see what products are actually visible
+  // Live Printify test
   if (printify.printify_api_key) {
     try {
-      const headers = { Authorization: `Bearer ${printify.printify_api_key}`, "Content-Type": "application/json" };
-      const shopRes = await fetch("https://api.printify.com/v1/shops.json", { headers });
-      if (shopRes.ok) {
-        const shops: Array<{ id: number; title: string }> = await shopRes.json();
-        const activeId = printify.printify_shop_id || String(shops[0]?.id);
-        const prodRes  = await fetch(`https://api.printify.com/v1/shops/${activeId}/products.json?page=1&limit=5`, { headers, cache: "no-store" });
-        if (prodRes.ok) {
-          const data = await prodRes.json();
-          result.printify_live = {
-            shop_used: activeId,
-            total_products: data.total,
-            sample_titles: (data.data as Array<{ title: string; visible: boolean }>)
-              .map((p) => `${p.title}${p.visible === false ? " [HIDDEN]" : ""}`),
-          };
-        } else {
-          result.printify_live = { error: `products fetch failed: ${prodRes.status}` };
-        }
+      const headers = {
+        Authorization: `Bearer ${printify.printify_api_key}`,
+        "Content-Type": "application/json",
+      };
+
+      // Get all shops
+      const shopsRes = await fetch("https://api.printify.com/v1/shops.json", { headers, cache: "no-store" });
+      if (!shopsRes.ok) {
+        result["4_printify_live"] = { error: `shops.json failed with status ${shopsRes.status}` };
+      } else {
+        const shops: Array<{ id: number; title: string }> = await shopsRes.json();
+        const shopIds = printify.printify_shop_id
+          ? printify.printify_shop_id.split(",").map((s: string) => s.trim())
+          : shops.map((s) => String(s.id));
+
+        const shopDetails = await Promise.all(
+          shopIds.map(async (shopId) => {
+            try {
+              const r = await fetch(
+                `https://api.printify.com/v1/shops/${shopId}/products.json?page=1&limit=5`,
+                { headers, cache: "no-store" }
+              );
+              if (!r.ok) return { shop_id: shopId, error: `HTTP ${r.status}` };
+              const data = await r.json();
+              return {
+                shop_id: shopId,
+                shop_title: shops.find((s) => String(s.id) === shopId)?.title ?? "unknown",
+                total_products: data.total ?? 0,
+                sample: (data.data as Array<{ title: string; visible?: boolean }>)
+                  ?.slice(0, 5)
+                  .map((p) => p.title) ?? [],
+              };
+            } catch (e) {
+              return { shop_id: shopId, error: (e as Error).message };
+            }
+          })
+        );
+
+        result["4_printify_live"] = { shops_on_account: shops.map((s) => ({ id: s.id, title: s.title })), shops_fetched: shopDetails };
       }
     } catch (e) {
-      result.printify_live = { error: (e as Error).message };
+      result["4_printify_live"] = { error: (e as Error).message };
     }
+  } else {
+    result["4_printify_live"] = "skipped — no API key saved";
   }
 
-  return NextResponse.json(result);
+  return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
 }
