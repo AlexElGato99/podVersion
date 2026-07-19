@@ -254,8 +254,15 @@ export function printifyToProductDetail(p: PrintifyProduct): import("./printful"
 
   const defaultImage = p.images.find((i) => i.is_default) ?? p.images[0];
 
-  // Deduplicate all mockup image URLs for the gallery strip
-  const allImages = [...new Set(p.images.map((i) => i.src).filter(Boolean))];
+  // Deduplicate all mockup image URLs for the gallery strip, preserving variant_ids
+  const seen = new Set<string>();
+  const allImages: Array<{ src: string; variant_ids: number[] }> = [];
+  for (const img of p.images) {
+    if (img.src && !seen.has(img.src)) {
+      seen.add(img.src);
+      allImages.push({ src: img.src, variant_ids: img.variant_ids ?? [] });
+    }
+  }
 
   return {
     sync_product: {

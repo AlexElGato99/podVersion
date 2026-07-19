@@ -82,7 +82,7 @@ export interface PrintfulProductDetail {
   sync_product: PrintfulProduct & { description: string };
   sync_variants: PrintfulVariant[];
   /** All mockup/gallery images for the product — used by the image gallery strip */
-  all_images?: string[];
+  all_images?: Array<{ src: string; variant_ids: number[] }>;
 }
 
 // Cache catalog product type lookups within a single server process — many

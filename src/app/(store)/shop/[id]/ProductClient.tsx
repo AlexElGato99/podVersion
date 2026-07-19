@@ -144,22 +144,48 @@ export default function ProductClient({ product }: ProductClientProps) {
     }) ?? sync_variants[0];
   }, [sync_variants, selectedColor, selectedSize, hasColors, hasSizes]);
 
-  // Derive main image: pinned thumbnail > color mockup > thumbnail
+  // Derive main image: pinned > first gallery image for this color > color mockup > thumbnail
   const derivedImage = (() => {
     const cd = colorDataMap.get(selectedColor);
     return cd?.mockupImage ?? cd?.shirtImage ?? sync_product.thumbnail_url ?? "";
   })();
   const displayImage = pinnedImage ?? derivedImage;
 
-  // When color changes, clear any manually pinned image
+  // When color changes, pin the first gallery image for the new color
   const handleColorChange = (color: string) => {
     setSelectedColor(color);
+    // Will be resolved after galleryImages recomputes — clear pin so derivedImage takes over
     setPinnedImage(null);
   };
 
-  // Gallery: all_images (Printify) OR per-color mockups (Printful)
+  // When galleryImages change (due to color change), auto-pin the first image
+  useEffect(() => {
+    if (galleryImages.length > 0) {
+      setPinnedImage(galleryImages[0]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedColor]);
+
+  // Variant IDs for the currently selected color
+  const selectedColorVariantIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const v of sync_variants) {
+      if (!hasColors || v.color === selectedColor) ids.add(v.id);
+    }
+    return ids;
+  }, [sync_variants, selectedColor, hasColors]);
+
+  // Gallery: all_images (Printify, filtered to selected color) OR per-color mockups (Printful)
   const galleryImages: string[] = useMemo(() => {
-    if (all_images && all_images.length > 1) return all_images;
+    if (all_images && all_images.length > 0) {
+      // Filter to images that belong to the selected color's variants
+      const colorImgs = all_images
+        .filter((img) => !img.variant_ids.length || img.variant_ids.some((id) => selectedColorVariantIds.has(id)))
+        .map((img) => img.src);
+      // If color filtering yields images, use them; otherwise show all (no color variants mapped)
+      if (colorImgs.length > 0) return colorImgs;
+      return all_images.map((img) => img.src);
+    }
     // Printful: collect unique mockups per color
     const seen = new Set<string>();
     const imgs: string[] = [];
@@ -169,7 +195,8 @@ export default function ProductClient({ product }: ProductClientProps) {
     }
     if (sync_product.thumbnail_url && !seen.has(sync_product.thumbnail_url)) imgs.push(sync_product.thumbnail_url);
     return imgs;
-  }, [all_images, colorDataMap, sync_product.thumbnail_url]);
+  }, [all_images, selectedColorVariantIds, colorDataMap, sync_product.thumbnail_url]);
+
   const [quantity, setQuantity] = useState(1);
   const [wishlist, setWishlist] = useState(false);
   const [added, setAdded] = useState(false);
@@ -293,9 +320,10 @@ export default function ProductClient({ product }: ProductClientProps) {
             </div>
 
             {displayDescription && (
-              <p className="text-sm text-zinc-600 leading-relaxed border-l-2 border-zinc-200 pl-3">
-                {displayDescription}
-              </p>
+              <div
+                className="text-sm text-zinc-600 leading-relaxed border-l-2 border-zinc-200 pl-3 [&_br]:block [&_ul]:list-disc [&_ul]:pl-4 [&_li]:my-0.5 [&_p]:mb-2"
+                dangerouslySetInnerHTML={{ __html: displayDescription }}
+              />
             )}
 
             {/* Product Specs — indexed by Google for long-tail product queries */}
