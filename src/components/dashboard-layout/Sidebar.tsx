@@ -15,6 +15,7 @@ import {
   LayoutGrid,
   PanelLeft,
   LayoutTemplate,
+  Package,
 } from "lucide-react";import { Logo } from "@/components/ui/DashboardLogo";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +51,7 @@ const navSections: NavSection[] = [
   {
     title: "Store",
     items: [
+      { label: "Products", href: "/dashboard/products", icon: Package },
       { label: "Users", href: "/dashboard/users", icon: Users },
       {
         label: "Orders",
