@@ -45,7 +45,7 @@ const ENV_FALLBACKS: Record<SettingsSection, Record<string, string | undefined>>
   },
   general: {
     /** "printful" | "printify" | "both" */
-    pod_provider: process.env.POD_PROVIDER ?? "printful",
+    pod_provider: process.env.POD_PROVIDER ?? "both",
   },
   email: {
     email_api_key: process.env.EMAIL_API_KEY,

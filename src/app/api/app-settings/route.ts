@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { getSettingsSection, invalidateSettingsCache } from "@/lib/settings";
@@ -109,5 +110,9 @@ export async function POST(req: NextRequest) {
   }
 
   invalidateSettingsCache();
+  revalidatePath("/", "page");
+  revalidatePath("/shop", "page");
+  revalidatePath("/shop/[id]", "page");
+  revalidatePath("/collections", "page");
   return NextResponse.json({ ok: true });
 }

@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProducts, getProduct } from "@/lib/printful";
 import { getPrintifyProducts, getPrintifyProduct, getPrintifyShopId, toPrintifyCommonProduct } from "@/lib/printify";
-import { getSettingsSection } from "@/lib/settings";
+import { getStoreProducts } from "@/lib/products";
 
 export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   try {
-    const general = await getSettingsSection("general");
-    const provider = (general.pod_provider ?? "printful").toLowerCase();
-
     // ── Single product detail ────────────────────────────────────────────
     if (id) {
       if (id.startsWith("printify_")) {
@@ -22,18 +19,7 @@ export async function GET(req: NextRequest) {
     }
 
     // ── Product list ─────────────────────────────────────────────────────
-    const usePrintful  = provider === "printful"  || provider === "both";
-    const usePrintify  = provider === "printify"  || provider === "both";
-
-    const [printfulProducts, printifyProducts] = await Promise.all([
-      usePrintful  ? getProducts()          : Promise.resolve([]),
-      usePrintify  ? getPrintifyProducts()  : Promise.resolve([]),
-    ]);
-
-    const products = [
-      ...printfulProducts.map((p) => ({ ...p, _source: "printful" as const })),
-      ...printifyProducts.map(toPrintifyCommonProduct),
-    ];
+    const products = await getStoreProducts();
 
     return NextResponse.json({ products });
   } catch (error) {

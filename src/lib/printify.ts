@@ -23,7 +23,9 @@ async function printifyFetch(path: string, options: RequestInit = {}) {
       ...(isGet ? {} : { "Content-Type": "application/json" }),
       ...options.headers,
     },
-    next: { revalidate: 60 },
+    // Printify product responses can exceed 2MB which exceeds Next.js's fetch cache limit.
+    // Use no-store so every request fetches fresh data reliably.
+    cache: "no-store",
   });
 
   if (!res.ok) {

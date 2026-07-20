@@ -28,6 +28,7 @@ export async function GET() {
 
   const headers = {
     Authorization: `Bearer ${printify_api_key}`,
+  };
 
   try {
     // 1. Verify key by fetching shops

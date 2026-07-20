@@ -56,13 +56,20 @@ export type CommonProduct = {
   featured_color?: string | null;
 };
 
-/** Fetch all products respecting the active pod_provider setting, with admin overrides applied. */
+/** Fetch all products respecting the active provider setting, with admin overrides applied. */
 export async function getStoreProducts(): Promise<CommonProduct[]> {
-  const general = await getSettingsSection("general");
-  const provider = (general.pod_provider ?? "printful").toLowerCase();
+  const [general, printfulSettings, printifySettings] = await Promise.all([
+    getSettingsSection("general"),
+    getSettingsSection("printful"),
+    getSettingsSection("printify"),
+  ]);
 
-  const usePrintful = provider === "printful" || provider === "both";
-  const usePrintify = provider === "printify" || provider === "both";
+  const provider = (general.pod_provider ?? "printful").toLowerCase();
+  const allowPrintful = provider === "printful" || provider === "both";
+  const allowPrintify = provider === "printify" || provider === "both";
+
+  const usePrintful = allowPrintful && !!printfulSettings.printful_api_key;
+  const usePrintify = allowPrintify && !!printifySettings.printify_api_key;
 
   const [printfulList, printifyList, overrides] = await Promise.all([
     usePrintful ? getPrintfulProducts().catch((e) => { console.error("[products] Printful error:", e.message); return []; }) : Promise.resolve([]),
