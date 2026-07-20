@@ -612,11 +612,19 @@ function parseDescriptionSections(html: string): {
   features: string[];
   care: string[];
   extra: string;
+  table: string;
 } {
-  if (!html) return { intro: "", features: [], care: [], extra: "" };
+  if (!html) return { intro: "", features: [], care: [], extra: "", table: "" };
+
+  // Extract table HTML before stripping tags
+  const tableMatch = html.match(/<table[\s\S]*?<\/table>/i);
+  const table = tableMatch ? tableMatch[0] : "";
+
+  // Remove table from HTML before processing
+  const htmlWithoutTable = html.replace(/<table[\s\S]*?<\/table>/i, "");
 
   // Convert to plain text (preserve newlines from <br/>)
-  const text = html
+  const text = htmlWithoutTable
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n")
     .replace(/<[^>]+>/g, "")
@@ -632,7 +640,7 @@ function parseDescriptionSections(html: string): {
   const FEATURE_HEADERS = /^product features?$/i;
   const CARE_HEADERS    = /^care instructions?$/i;
 
-  const result = { intro: "", features: [] as string[], care: [] as string[], extra: "" };
+  const result = { intro: "", features: [] as string[], care: [] as string[], extra: "", table };
   let section: "intro" | "features" | "care" | "extra" = "intro";
   const introBuf: string[] = [];
   const extraBuf: string[] = [];
@@ -690,7 +698,7 @@ const FAQ_ITEMS = [
   },
 ];
 
-const TABS = ["Description", "Features", "Care Instructions", "FAQ"] as const;
+const TABS = ["Description", "Features", "Care Instructions", "Size Guide", "FAQ"] as const;
 type TabId = (typeof TABS)[number];
 
 function ProductInfoTabs({
@@ -722,6 +730,7 @@ function ProductInfoTabs({
     if (tab === "Description") return !!sections.intro;
     if (tab === "Features")    return sections.features.length > 0;
     if (tab === "Care Instructions") return sections.care.length > 0;
+    if (tab === "Size Guide") return !!sections.table;
     return true; // FAQ always shown
   });
 
@@ -799,6 +808,45 @@ function ProductInfoTabs({
             </li>
           ))}
         </ul>
+      )}
+
+      {resolvedActive === "Size Guide" && sections.table && (
+        <div className={cn(compact ? "max-w-none" : "max-w-3xl", "overflow-x-auto")}>
+          <style>{`
+            .size-guide-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 0;
+            }
+            .size-guide-table thead {
+              background-color: #f3f4f6;
+              border-bottom: 2px solid #e5e7eb;
+            }
+            .size-guide-table th {
+              padding: 12px 14px;
+              text-align: left;
+              font-weight: 600;
+              font-size: 13px;
+              color: #374151;
+              white-space: nowrap;
+            }
+            .size-guide-table tbody tr {
+              border-bottom: 1px solid #e5e7eb;
+            }
+            .size-guide-table tbody tr:last-child {
+              border-bottom: none;
+            }
+            .size-guide-table td {
+              padding: 12px 14px;
+              font-size: 13px;
+              color: #6b7280;
+            }
+            .size-guide-table tbody tr:hover {
+              background-color: #f9fafb;
+            }
+          `}</style>
+          <div dangerouslySetInnerHTML={{ __html: sections.table.replace(/<table/g, '<table class="size-guide-table"') }} />
+        </div>
       )}
 
       {resolvedActive === "FAQ" && (
