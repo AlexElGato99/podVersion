@@ -69,6 +69,7 @@ export default function HomepageSectionsPage() {
   const [loading, setLoading]   = useState(true);
   const [saving, setSaving]     = useState(false);
   const [saved, setSaved]       = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [expandedKey, setExpandedKey] = useState<string | null>("tshirts");
 
   const load = useCallback(async () => {
@@ -119,14 +120,21 @@ export default function HomepageSectionsPage() {
 
   async function saveAll() {
     setSaving(true);
+    setSaveError(null);
     try {
-      await fetch("/api/homepage-sections", {
+      const res = await fetch("/api/homepage-sections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(sections),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Failed to save homepage sections");
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
+    } catch (e) {
+      setSaveError((e as Error).message);
     } finally {
       setSaving(false);
     }
@@ -175,6 +183,12 @@ export default function HomepageSectionsPage() {
       <div style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: "10px", padding: "12px 16px", marginBottom: "20px", fontSize: "12px", color: "var(--text-secondary)" }}>
         <strong style={{ color: "var(--text-primary)" }}>How it works:</strong> Each section pulls products from your Printful catalog matched by type. Hidden sections are not rendered on the homepage. Drag order buttons reorder sections. Changes take effect immediately after saving.
       </div>
+
+      {saveError && (
+        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", padding: "12px 16px", marginBottom: "20px", fontSize: "12px", color: "#b91c1c" }}>
+          <strong>Save failed:</strong> {saveError}
+        </div>
+      )}
 
       {/* Section cards */}
       {sections.map((sec, idx) => {
@@ -287,7 +301,7 @@ export default function HomepageSectionsPage() {
                       value={sec.max_products}
                       onChange={(e) => update(sec.key, { max_products: parseInt(e.target.value) })}
                     >
-                      {[3, 4, 6, 8, 12].map((n) => (
+                      {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
                         <option key={n} value={n}>{n} products</option>
                       ))}
                     </select>

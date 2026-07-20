@@ -133,14 +133,6 @@ export default function ProductCard({
           </span>
         )}
 
-        {/* Soft brand glow for more premium depth */}
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(to top, rgba(234,88,12,0.12) 0%, rgba(234,88,12,0.02) 35%, rgba(13,148,136,0) 70%)",
-          }}
-        />
 
         {/* Heart / wishlist */}
         <button

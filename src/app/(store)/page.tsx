@@ -1,8 +1,9 @@
 ﻿import Link from "next/link";
 import Image from "next/image";
 
-// Re-render at most every 60 seconds so newly added products appear quickly
-export const revalidate = 60;
+// Always render with fresh DB settings so homepage section layout (max_products)
+// reflects dashboard changes immediately.
+export const dynamic = "force-dynamic";
 import {
   ArrowRight,
   Truck,
@@ -21,6 +22,12 @@ import { getCatalogCategories } from "@/lib/printful";
 import ProductCard from "@/components/ui/ProductCard";
 import { productSlug } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
+
+const supabaseAdmin = createServiceClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 interface FloatingCard {
   id: string;
@@ -209,8 +216,7 @@ const PRODUCT_CATEGORIES: ProductCategory[] = [
 
 async function getHomepageSections(): Promise<ProductCategory[]> {
   try {
-    const supabase = await createClient();
-    const { data } = await supabase
+    const { data } = await supabaseAdmin
       .from("homepage_sections")
       .select("*")
       .order("sort_order", { ascending: true });
@@ -224,7 +230,7 @@ async function getHomepageSections(): Promise<ProductCategory[]> {
           subtitle:    saved.subtitle     ?? def.subtitle,
           shopSlug:    saved.shop_slug    ?? def.shopSlug,
           isVisible:   saved.is_visible   !== undefined ? saved.is_visible : true,
-          maxProducts: saved.max_products ?? 6,
+          maxProducts: Number(saved.max_products ?? 6),
           sortOrder:   saved.sort_order   ?? def.sortOrder,
           sectionBg:   (saved.bg as "white" | "zinc") ?? undefined,
           badgeFirst:  saved.badge_first  ?? undefined,
@@ -234,18 +240,6 @@ async function getHomepageSections(): Promise<ProductCategory[]> {
     }
   } catch { /* fall through */ }
   return PRODUCT_CATEGORIES;
-}
-
-function getSectionGridClass(maxProducts: number | undefined): string {
-  const max = maxProducts ?? 6;
-  if (max <= 3) return "lg:grid-cols-3";
-  if (max === 4) return "lg:grid-cols-4";
-  if (max === 5) return "lg:grid-cols-5";
-  if (max === 6) return "lg:grid-cols-6";
-  if (max === 8) return "lg:grid-cols-4 xl:grid-cols-8";
-  if (max >= 12) return "lg:grid-cols-4 xl:grid-cols-6";
-  // fallback for 7/9/10/11
-  return "lg:grid-cols-4 xl:grid-cols-6";
 }
 
 function classifyProduct(name: string, catalogTypeName?: string | null): CategoryKey {
@@ -514,10 +508,10 @@ export default async function HomePage() {
 
       {sectionSettings.map((cat, sectionIdx) => {
         if (cat.isVisible === false) return null;
-        const catProducts = byCategory[cat.key as CategoryKey].slice(0, cat.maxProducts ?? 6);
+        const sectionCols = Math.max(1, Math.min(12, Number(cat.maxProducts ?? 6) || 6));
+        const catProducts = byCategory[cat.key as CategoryKey].slice(0, sectionCols);
         if (catProducts.length === 0) return null;
         const Icon = cat.icon;
-        const sectionGridClass = getSectionGridClass(cat.maxProducts);
         const bgClass = cat.sectionBg === "zinc" ? "bg-zinc-50/60" : cat.sectionBg === "white" ? "bg-white" : sectionIdx % 2 === 0 ? "bg-white" : "bg-zinc-50/60";
         return (
           <section key={cat.key} className={`py-14 ${bgClass}`}>
@@ -540,7 +534,10 @@ export default async function HomePage() {
                 </Link>
               </div>
 
-              <div className={`grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 ${sectionGridClass}`}>
+              <div
+                className="grid gap-x-4 gap-y-8"
+                style={{ gridTemplateColumns: `repeat(${sectionCols}, minmax(0, 1fr))` }}
+              >
                 {catProducts.map((product, i) => (
                   <ProductCard
                     key={product.id}

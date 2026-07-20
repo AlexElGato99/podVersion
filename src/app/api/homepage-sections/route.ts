@@ -12,7 +12,15 @@ export async function GET() {
     .from("homepage_sections")
     .select("*")
     .order("sort_order", { ascending: true });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    if (error.code === "42P01") {
+      return NextResponse.json(
+        { error: "Missing DB table: public.homepage_sections. Run supabase-homepage-sections-migration.sql in Supabase SQL Editor." },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json({ sections: data ?? [] });
 }
 
@@ -24,13 +32,29 @@ export async function POST(req: NextRequest) {
     const { error } = await supabaseAdmin
       .from("homepage_sections")
       .upsert(body.map((s) => ({ ...s, updated_at: new Date().toISOString() })), { onConflict: "key" });
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      if (error.code === "42P01") {
+        return NextResponse.json(
+          { error: "Missing DB table: public.homepage_sections. Run supabase-homepage-sections-migration.sql in Supabase SQL Editor." },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
   } else {
     // Single upsert
     const { error } = await supabaseAdmin
       .from("homepage_sections")
       .upsert({ ...body, updated_at: new Date().toISOString() }, { onConflict: "key" });
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      if (error.code === "42P01") {
+        return NextResponse.json(
+          { error: "Missing DB table: public.homepage_sections. Run supabase-homepage-sections-migration.sql in Supabase SQL Editor." },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
   }
 
   // Homepage uses ISR; force immediate cache refresh so section updates
