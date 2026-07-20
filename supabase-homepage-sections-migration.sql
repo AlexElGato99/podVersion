@@ -21,7 +21,8 @@ values
   ('mugs',     'Custom Mugs & Drinkware',        'Start your morning with your favourite design', 'mug', true, 6, 2, 'white'),
   ('stickers', 'Stickers & Decals',              'Waterproof, fade-resistant custom stickers', 'sticker', true, 6, 3, 'zinc'),
   ('caps',     'Caps & Hats',                    'Structured & unstructured caps for every style', 'cap', true, 6, 4, 'white'),
-  ('other',    'Accessories & More',             'Posters, phone cases, tote bags & beyond', '', true, 6, 5, 'zinc')
+  ('wallart',  'Canvas Prints & Wall Art',       'Stretched canvas, posters, framed art and statement decor', 'canvas', true, 6, 5, 'zinc'),
+  ('other',    'Accessories & More',             'Phone cases, tote bags and everyday extras', '', true, 6, 6, 'white')
 on conflict (key) do nothing;
 
 -- Optional: keep updated_at fresh when a row is changed

@@ -38,7 +38,8 @@ const SECTION_DEFAULTS: HomepageSection[] = [
   { key: "mugs",     label: "Custom Mugs & Drinkware",           subtitle: "Start your morning with your favourite design",      shop_slug: "mug",      is_visible: true,  max_products: 6, sort_order: 2, bg: "white" },
   { key: "stickers", label: "Stickers & Decals",                 subtitle: "Waterproof, fade-resistant custom stickers",        shop_slug: "sticker",  is_visible: true,  max_products: 6, sort_order: 3, bg: "zinc"  },
   { key: "caps",     label: "Caps & Hats",                       subtitle: "Structured & unstructured caps for every style",    shop_slug: "cap",      is_visible: true,  max_products: 6, sort_order: 4, bg: "white" },
-  { key: "other",    label: "Accessories & More",                subtitle: "Posters, phone cases, tote bags & beyond",          shop_slug: "",         is_visible: true,  max_products: 6, sort_order: 5, bg: "zinc"  },
+  { key: "wallart",  label: "Canvas Prints & Wall Art",          subtitle: "Stretched canvas, posters, framed art and statement decor", shop_slug: "canvas", is_visible: true,  max_products: 6, sort_order: 5, bg: "zinc"  },
+  { key: "other",    label: "Accessories & More",                subtitle: "Phone cases, tote bags and everyday extras",        shop_slug: "",         is_visible: true,  max_products: 6, sort_order: 6, bg: "white" },
 ];
 
 const BADGE_OPTIONS = ["", "New", "Bestseller", "Popular", "Sale", "Limited", "Hot"] as const;
@@ -60,6 +61,7 @@ const KEY_LABELS: Record<string, string> = {
   mugs: "Mugs",
   stickers: "Stickers",
   caps: "Caps",
+  wallart: "Wall Art",
   other: "Other / Accessories",
 };
 

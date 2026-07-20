@@ -112,6 +112,11 @@ export default function ProductClient({ product, productId }: ProductClientProps
     return { colors: colorList, sizes: otherSizes };
   }, [sync_variants]);
 
+  const useCompactSizePicker = useMemo(() => {
+    if (sizes.length < 7) return false;
+    return sizes.some((size) => /\d+\s*["']?\s*[x×]\s*\d+/i.test(size));
+  }, [sizes]);
+
   // Unique color names in the order they appear
 
   const hasColors = colors.length > 0;
@@ -487,39 +492,74 @@ export default function ProductClient({ product, productId }: ProductClientProps
                     Size guide
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {sizes.map((size) => {
-                    const isSelected = size === selectedSize;
-                    const available = sync_variants.some((v) => {
-                      const colorOk = !hasColors || v.color === selectedColor;
-                      const sizeOk  = v.size === size;
-                      return colorOk && sizeOk;
-                    });
-                    return (
-                      <button
-                        key={size}
-                        onClick={() => available && setSelectedSize(size)}
-                        disabled={!available}
-                        className={cn(
-                          "relative min-w-[52px] h-11 px-4 rounded-xl text-sm font-semibold border-2 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-1",
-                          isSelected
-                            ? "border-zinc-900 bg-zinc-900 text-white shadow-sm"
-                            : available
-                              ? "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-900 hover:text-zinc-900"
-                              : "border-zinc-100 bg-zinc-50 text-zinc-300 cursor-not-allowed"
-                        )}
-                        aria-pressed={isSelected}
+                {useCompactSizePicker ? (
+                  <div className="rounded-2xl border border-zinc-200 bg-linear-to-br from-zinc-50 to-white p-3.5 shadow-sm">
+                    <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                      Choose a size
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={selectedSize}
+                        onChange={(e) => setSelectedSize(e.target.value)}
+                        className="w-full appearance-none rounded-xl border border-zinc-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-zinc-800 shadow-sm transition focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                       >
-                        {size}
-                        {!available && (
-                          <span className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-xl">
-                            <span className="absolute w-[120%] h-px bg-zinc-300 rotate-12" />
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                        {sizes.map((size) => {
+                          const available = sync_variants.some((v) => {
+                            const colorOk = !hasColors || v.color === selectedColor;
+                            const sizeOk = v.size === size;
+                            return colorOk && sizeOk;
+                          });
+                          return (
+                            <option key={size} value={size} disabled={!available}>
+                              {size}{available ? "" : " - Unavailable"}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
+                      <span className="inline-flex rounded-full bg-brand-50 px-2 py-0.5 font-medium text-brand-700">
+                        Space-saving
+                      </span>
+                      <span>Best for wall art and large dimension sets.</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {sizes.map((size) => {
+                      const isSelected = size === selectedSize;
+                      const available = sync_variants.some((v) => {
+                        const colorOk = !hasColors || v.color === selectedColor;
+                        const sizeOk  = v.size === size;
+                        return colorOk && sizeOk;
+                      });
+                      return (
+                        <button
+                          key={size}
+                          onClick={() => available && setSelectedSize(size)}
+                          disabled={!available}
+                          className={cn(
+                            "relative min-w-[52px] h-11 px-4 rounded-xl text-sm font-semibold border-2 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-1",
+                            isSelected
+                              ? "border-zinc-900 bg-zinc-900 text-white shadow-sm"
+                              : available
+                                ? "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-900 hover:text-zinc-900"
+                                : "border-zinc-100 bg-zinc-50 text-zinc-300 cursor-not-allowed"
+                          )}
+                          aria-pressed={isSelected}
+                        >
+                          {size}
+                          {!available && (
+                            <span className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-xl">
+                              <span className="absolute w-[120%] h-px bg-zinc-300 rotate-12" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 

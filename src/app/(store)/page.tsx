@@ -15,6 +15,7 @@ import {
   Coffee,
   Sticker,
   HardHat,
+  Image as ImageIcon,
   ShoppingBag,
 } from "lucide-react";
 import { getStoreProducts } from "@/lib/products";
@@ -173,7 +174,7 @@ async function getAllProducts() {
 }
 
 /* ── Categorize products by name keywords ──────────────────────── */
-type CategoryKey = "tshirts" | "hoodies" | "mugs" | "stickers" | "caps" | "other";
+type CategoryKey = "tshirts" | "hoodies" | "mugs" | "stickers" | "caps" | "wallart" | "other";
 
 interface ProductCategory {
   key: CategoryKey;
@@ -211,7 +212,8 @@ const PRODUCT_CATEGORIES: ProductCategory[] = [
   { key: "mugs",     label: "Custom Mugs & Drinkware",             subtitle: "Start your morning with your favourite design",          shopSlug: "mug",       icon: Coffee,      bg: "bg-amber-50",   accent: "text-amber-600",  sortOrder: 2 },
   { key: "stickers", label: "Stickers & Decals",                   subtitle: "Waterproof, fade-resistant custom stickers",            shopSlug: "sticker",   icon: Sticker,     bg: "bg-green-50",   accent: "text-green-600",  sortOrder: 3 },
   { key: "caps",     label: "Caps & Hats",                         subtitle: "Structured & unstructured caps for every style",        shopSlug: "cap",       icon: HardHat,     bg: "bg-purple-50",  accent: "text-purple-600", sortOrder: 4 },
-  { key: "other",    label: "Accessories & More",                  subtitle: "Posters, phone cases, tote bags & beyond",             shopSlug: "",          icon: ShoppingBag, bg: "bg-zinc-50",    accent: "text-zinc-600",   sortOrder: 5 },
+  { key: "wallart",  label: "Canvas Prints & Wall Art",            subtitle: "Stretched canvas, posters, framed art and statement decor", shopSlug: "canvas", icon: ImageIcon,  bg: "bg-rose-50",    accent: "text-rose-600",   sortOrder: 5 },
+  { key: "other",    label: "Accessories & More",                  subtitle: "Phone cases, tote bags and everyday extras",           shopSlug: "",          icon: ShoppingBag, bg: "bg-zinc-50",    accent: "text-zinc-600",   sortOrder: 6 },
 ];
 
 async function getHomepageSections(): Promise<ProductCategory[]> {
@@ -255,6 +257,7 @@ function classifyProduct(name: string, catalogTypeName?: string | null): Categor
   // swallowed by the broader t-shirt fallback below.
   if (/mug|cup|tumbler|bottle|drinkware/.test(n)) return "mugs";
   if (/sticker|decal/.test(n)) return "stickers";
+  if (/canvas|poster|wall art|wall decor|framed|frame|stretched matte|art print/.test(n)) return "wallart";
   if (/cap|hat|beanie|snapback|trucker|dad hat/.test(n)) return "caps";
   if (/hoodie|sweatshirt|pullover|fleece|crewneck/.test(n)) return "hoodies";
   if (/t-shirt|tee|jersey|tank|polo|shirt/.test(n)) return "tshirts";
@@ -265,6 +268,7 @@ function classifyProduct(name: string, catalogTypeName?: string | null): Categor
     const alt = name.toLowerCase();
     if (/mug|cup|tumbler|bottle|drinkware/.test(alt)) return "mugs";
     if (/sticker|decal/.test(alt)) return "stickers";
+    if (/canvas|poster|wall art|wall decor|framed|frame|stretched matte|art print/.test(alt)) return "wallart";
     if (/cap|hat|beanie|snapback|trucker|dad hat/.test(alt)) return "caps";
     if (/hoodie|sweatshirt|pullover|fleece|crewneck/.test(alt)) return "hoodies";
     if (/t-shirt|tee|jersey|tank|polo|shirt/.test(alt)) return "tshirts";
@@ -325,7 +329,7 @@ export default async function HomePage() {
 
   // Group by category, capped per-section by each section's configured max (default 6)
   const byCategory: Record<CategoryKey, typeof allProducts> = {
-    tshirts: [], hoodies: [], mugs: [], stickers: [], caps: [], other: [],
+    tshirts: [], hoodies: [], mugs: [], stickers: [], caps: [], wallart: [], other: [],
   };
   for (const p of allProducts) {
     const cat = p.category as CategoryKey;
