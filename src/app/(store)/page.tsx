@@ -593,16 +593,18 @@ export default async function HomePage() {
       {/* CTA Banner */}
       <section className="py-16 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl bg-zinc-900 px-8 py-14 text-center">
-            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 20% 50%, #ea580c 0%, transparent 60%), radial-gradient(circle at 80% 50%, #0d9488 0%, transparent 60%)" }} />
+          <div className="relative overflow-hidden rounded-3xl border border-brand-200 bg-brand-100 px-8 py-14 text-center shadow-sm shadow-brand-200/50">
             <div className="relative">
-              <h2 className="text-3xl font-bold text-white sm:text-4xl">Find something you&apos;ll love</h2>
-              <p className="mt-3 text-zinc-400 max-w-md mx-auto text-sm">
+              <span className="inline-flex items-center rounded-full border border-brand-200 bg-white/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">
+                New arrivals and best sellers
+              </span>
+              <h2 className="mt-4 text-3xl font-bold text-brand-950 sm:text-4xl">Find something you&apos;ll love</h2>
+              <p className="mt-3 max-w-md mx-auto text-sm leading-relaxed text-brand-800/80">
                 Thousands of unique designs, made just for you. New products added every week.
               </p>
               <Link
                 href="/shop"
-                className="mt-7 inline-flex items-center gap-2 rounded-full bg-brand-600 px-8 py-3 text-sm font-semibold text-white hover:bg-brand-500 transition-colors"
+                className="mt-7 inline-flex items-center gap-2 rounded-full bg-brand-600 px-8 py-3 text-sm font-semibold text-white shadow-sm shadow-brand-300 transition-all hover:-translate-y-0.5 hover:bg-brand-700"
               >
                 Start shopping
                 <ArrowRight className="h-4 w-4" />

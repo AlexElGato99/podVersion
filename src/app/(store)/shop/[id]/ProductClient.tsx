@@ -656,12 +656,21 @@ function parseDescriptionSections(html: string): {
 } {
   if (!html) return { intro: "", features: [], care: [], extra: "", table: "" };
 
-  // Extract table HTML before stripping tags
-  const tableMatch = html.match(/<table[\s\S]*?<\/table>/i);
-  const table = tableMatch ? tableMatch[0] : "";
+  // Keep only one size guide table to avoid duplicate guides.
+  const tableMatches = html.match(/<table[\s\S]*?<\/table>/gi) ?? [];
+  const uniqueTables: string[] = [];
+  const seenTables = new Set<string>();
+  for (const t of tableMatches) {
+    const normalized = t.replace(/\s+/g, " ").trim().toLowerCase();
+    if (!seenTables.has(normalized)) {
+      seenTables.add(normalized);
+      uniqueTables.push(t);
+    }
+  }
+  const table = uniqueTables[0] ?? "";
 
-  // Remove table from HTML before processing
-  const htmlWithoutTable = html.replace(/<table[\s\S]*?<\/table>/i, "");
+  // Remove all table blocks before converting to plain text.
+  const htmlWithoutTable = html.replace(/<table[\s\S]*?<\/table>/gi, "");
 
   // Convert to plain text (preserve newlines from <br/>)
   const text = htmlWithoutTable
