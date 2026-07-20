@@ -714,6 +714,12 @@ function ProductInfoTabs({
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const sections = useMemo(() => parseDescriptionSections(description), [description]);
+  const sizeGuideHtml = useMemo(() => {
+    if (!sections.table) return "";
+    return sections.table
+      .replace(/\sstyle=(['"]).*?\1/gi, "")
+      .replace(/<table/gi, '<table class="size-guide-table"');
+  }, [sections.table]);
 
   const faqSchema = {
     "@context": "https://schema.org",
@@ -811,7 +817,7 @@ function ProductInfoTabs({
       )}
 
       {resolvedActive === "Size Guide" && sections.table && (
-        <div className={cn(compact ? "max-w-none" : "max-w-3xl", "overflow-x-auto")}>
+        <div className={cn(compact ? "max-w-none text-xs" : "max-w-3xl text-sm", "overflow-x-auto text-zinc-700")}>
           <style>{`
             .size-guide-table {
               width: 100%;
@@ -820,32 +826,34 @@ function ProductInfoTabs({
             }
             .size-guide-table thead {
               background-color: #f3f4f6;
-              border-bottom: 2px solid #e5e7eb;
+              border-bottom: 1px solid #f3f4f6;
             }
             .size-guide-table th {
-              padding: 12px 14px;
+              padding: 4px 6px;
               text-align: left;
-              font-weight: 600;
-              font-size: 13px;
+              font-weight: 500;
+              font-size: inherit;
+              line-height: inherit;
               color: #374151;
               white-space: nowrap;
             }
             .size-guide-table tbody tr {
-              border-bottom: 1px solid #e5e7eb;
+              border-bottom: 1px solid #f9fafb;
             }
             .size-guide-table tbody tr:last-child {
               border-bottom: none;
             }
             .size-guide-table td {
-              padding: 12px 14px;
-              font-size: 13px;
+              padding: 3px 6px;
+              font-size: inherit;
+              line-height: inherit;
               color: #6b7280;
             }
             .size-guide-table tbody tr:hover {
               background-color: #f9fafb;
             }
           `}</style>
-          <div dangerouslySetInnerHTML={{ __html: sections.table.replace(/<table/g, '<table class="size-guide-table"') }} />
+          <div dangerouslySetInnerHTML={{ __html: sizeGuideHtml }} />
         </div>
       )}
 
