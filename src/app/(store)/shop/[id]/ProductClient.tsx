@@ -117,6 +117,15 @@ export default function ProductClient({ product, productId }: ProductClientProps
     return sizes.some((size) => /\d+\s*["']?\s*[x×]\s*\d+/i.test(size));
   }, [sizes]);
 
+  const isPhoneCaseProduct = useMemo(() => {
+    const text = `${displayName} ${sizes.join(" ")}`.toLowerCase();
+    return /\b(phone|iphone|galaxy|samsung|pixel)\b/.test(text) && /\bcase\b/.test(text);
+  }, [displayName, sizes]);
+
+  const useSizeDropdown = useCompactSizePicker || isPhoneCaseProduct;
+  const sizeOptionLabel = isPhoneCaseProduct ? "Device" : "Size";
+  const sizeDropdownLabel = isPhoneCaseProduct ? "Choose your device" : "Choose a size";
+
   // Unique color names in the order they appear
 
   const hasColors = colors.length > 0;
@@ -135,6 +144,10 @@ export default function ProductClient({ product, productId }: ProductClientProps
     if (defaultColor) setSelectedColor(defaultColor);
   }, [defaultColor]);
 
+  useEffect(() => {
+    if (sizes.length > 0 && !sizes.includes(selectedSize)) setSelectedSize(sizes[0]);
+  }, [sizes, selectedSize]);
+
   const selectedVariant = useMemo(() => {
     if (!hasColors && !hasSizes) return sync_variants[0];
     return sync_variants.find((v) => {
@@ -144,10 +157,12 @@ export default function ProductClient({ product, productId }: ProductClientProps
     }) ?? sync_variants[0];
   }, [sync_variants, selectedColor, selectedSize, hasColors, hasSizes]);
 
-  // Derive main image: pinned > first gallery image for this color > color mockup > thumbnail
+  const selectedVariantImage = selectedVariant?.files?.find((f) => f.type === "preview" && f.preview_url)?.preview_url ?? null;
+
+  // Derive main image: pinned > selected variant preview > color mockup > thumbnail
   const derivedImage = (() => {
     const cd = colorDataMap.get(selectedColor);
-    return cd?.mockupImage ?? cd?.shirtImage ?? sync_product.thumbnail_url ?? "";
+    return selectedVariantImage ?? cd?.mockupImage ?? cd?.shirtImage ?? sync_product.thumbnail_url ?? "";
   })();
   const displayImage = pinnedImage ?? derivedImage;
 
@@ -158,32 +173,33 @@ export default function ProductClient({ product, productId }: ProductClientProps
     setPinnedImage(null);
   };
 
-  // When galleryImages change (due to color change), auto-pin the first image
-  useEffect(() => {
-    if (galleryImages.length > 0) {
-      setPinnedImage(galleryImages[0]);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedColor]);
+  const handleSizeChange = (size: string) => {
+    setSelectedSize(size);
+    setPinnedImage(null);
+  };
 
-  // Variant IDs for the currently selected color
-  const selectedColorVariantIds = useMemo(() => {
+  // Variant IDs for the image gallery. Apparel stays color-scoped; device-style
+  // variants such as phone cases also scope by the selected size/device.
+  const shouldFilterGalleryBySize = isPhoneCaseProduct || (!hasColors && hasSizes);
+
+  const selectedGalleryVariantIds = useMemo(() => {
     const ids = new Set<number>();
     for (const v of sync_variants) {
-      if (!hasColors || v.color === selectedColor) ids.add(v.id);
+      const colorMatch = !hasColors || v.color === selectedColor;
+      const sizeMatch = !shouldFilterGalleryBySize || !hasSizes || v.size === selectedSize;
+      if (colorMatch && sizeMatch) ids.add(v.id);
     }
     return ids;
-  }, [sync_variants, selectedColor, hasColors]);
+  }, [sync_variants, selectedColor, selectedSize, hasColors, hasSizes, shouldFilterGalleryBySize]);
 
-  // Gallery: all_images (Printify, filtered to selected color) OR per-color mockups (Printful)
+  // Gallery: all_images (Printify, filtered to selected options) OR per-color mockups (Printful)
   const galleryImages: string[] = useMemo(() => {
     if (all_images && all_images.length > 0) {
-      // Filter to images that belong to the selected color's variants
-      const colorImgs = all_images
-        .filter((img) => !img.variant_ids.length || img.variant_ids.some((id) => selectedColorVariantIds.has(id)))
+      const optionImgs = all_images
+        .filter((img) => !img.variant_ids.length || img.variant_ids.some((id) => selectedGalleryVariantIds.has(id)))
         .map((img) => img.src);
-      // If color filtering yields images, use them; otherwise show all (no color variants mapped)
-      if (colorImgs.length > 0) return colorImgs;
+      // If option filtering yields images, use them; otherwise show all (no variant mappings)
+      if (optionImgs.length > 0) return optionImgs;
       return all_images.map((img) => img.src);
     }
     // Printful: collect unique mockups per color
@@ -195,7 +211,11 @@ export default function ProductClient({ product, productId }: ProductClientProps
     }
     if (sync_product.thumbnail_url && !seen.has(sync_product.thumbnail_url)) imgs.push(sync_product.thumbnail_url);
     return imgs;
-  }, [all_images, selectedColorVariantIds, colorDataMap, sync_product.thumbnail_url]);
+  }, [all_images, selectedGalleryVariantIds, colorDataMap, sync_product.thumbnail_url]);
+
+  useEffect(() => {
+    setPinnedImage(galleryImages[0] ?? null);
+  }, [galleryImages]);
 
   const [quantity, setQuantity] = useState(1);
   const [wishlist, setWishlist] = useState(false);
@@ -480,27 +500,29 @@ export default function ProductClient({ product, productId }: ProductClientProps
               </div>
             )}
 
-            {/* Size picker */}
+            {/* Size / device picker */}
             {hasSizes && (
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-zinc-800">
-                    Size: <span className="font-normal text-zinc-500">{selectedSize}</span>
+                    {sizeOptionLabel}: <span className="font-normal text-zinc-500">{selectedSize}</span>
                   </p>
-                  <button className="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium transition-colors">
-                    <Info className="h-3.5 w-3.5" />
-                    Size guide
-                  </button>
+                  {!isPhoneCaseProduct && (
+                    <button className="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium transition-colors">
+                      <Info className="h-3.5 w-3.5" />
+                      Size guide
+                    </button>
+                  )}
                 </div>
-                {useCompactSizePicker ? (
+                {useSizeDropdown ? (
                   <div className="rounded-2xl border border-zinc-200 bg-linear-to-br from-zinc-50 to-white p-3.5 shadow-sm">
                     <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
-                      Choose a size
+                      {sizeDropdownLabel}
                     </label>
                     <div className="relative">
                       <select
                         value={selectedSize}
-                        onChange={(e) => setSelectedSize(e.target.value)}
+                        onChange={(e) => handleSizeChange(e.target.value)}
                         className="w-full appearance-none rounded-xl border border-zinc-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-zinc-800 shadow-sm transition focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                       >
                         {sizes.map((size) => {
@@ -520,9 +542,13 @@ export default function ProductClient({ product, productId }: ProductClientProps
                     </div>
                     <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
                       <span className="inline-flex rounded-full bg-brand-50 px-2 py-0.5 font-medium text-brand-700">
-                        Space-saving
+                        {isPhoneCaseProduct ? "Required" : "Space-saving"}
                       </span>
-                      <span>Best for wall art and large dimension sets.</span>
+                      <span>
+                        {isPhoneCaseProduct
+                          ? "Pick the exact phone model before adding to cart."
+                          : "Best for wall art and large dimension sets."}
+                      </span>
                     </div>
                   </div>
                 ) : (
@@ -537,7 +563,7 @@ export default function ProductClient({ product, productId }: ProductClientProps
                       return (
                         <button
                           key={size}
-                          onClick={() => available && setSelectedSize(size)}
+                          onClick={() => available && handleSizeChange(size)}
                           disabled={!available}
                           className={cn(
                             "relative min-w-[52px] h-11 px-4 rounded-xl text-sm font-semibold border-2 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-1",

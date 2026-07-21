@@ -115,6 +115,25 @@ export interface PrintifyProduct {
   catalog_type_name: string | null;
 }
 
+function addPrintifyImage(
+  target: Array<{ src: string; variant_ids: number[] }>,
+  imageIndex: Map<string, number>,
+  img: PrintifyImage
+) {
+  if (!img.src) return;
+
+  const existingIndex = imageIndex.get(img.src);
+  if (existingIndex === undefined) {
+    imageIndex.set(img.src, target.length);
+    target.push({ src: img.src, variant_ids: [...(img.variant_ids ?? [])] });
+    return;
+  }
+
+  const mergedIds = new Set(target[existingIndex].variant_ids);
+  for (const id of img.variant_ids ?? []) mergedIds.add(id);
+  target[existingIndex].variant_ids = Array.from(mergedIds);
+}
+
 // ─── Blueprint type-name cache ────────────────────────────────────────────
 
 const blueprintCache = new Map<number, string | null>();
@@ -181,13 +200,10 @@ export async function getPrintifyShopId(): Promise<string> {
 /** Map a Printify product into the common shape used by the storefront. */
 export function toPrintifyCommonProduct(p: PrintifyProduct) {
   // Deduplicate all mockup images with their variant associations
-  const seen = new Set<string>();
+  const imageIndex = new Map<string, number>();
   const all_images: Array<{ src: string; variant_ids: number[] }> = [];
   for (const img of p.images) {
-    if (img.src && !seen.has(img.src)) {
-      seen.add(img.src);
-      all_images.push({ src: img.src, variant_ids: img.variant_ids ?? [] });
-    }
+    addPrintifyImage(all_images, imageIndex, img);
   }
 
   // Unique enabled color names
@@ -284,13 +300,10 @@ export function printifyToProductDetail(p: PrintifyProduct): import("./printful"
   const defaultImage = p.images.find((i) => i.is_default) ?? p.images[0];
 
   // Deduplicate all mockup image URLs for the gallery strip, preserving variant_ids
-  const seen = new Set<string>();
+  const imageIndex = new Map<string, number>();
   const allImages: Array<{ src: string; variant_ids: number[] }> = [];
   for (const img of p.images) {
-    if (img.src && !seen.has(img.src)) {
-      seen.add(img.src);
-      allImages.push({ src: img.src, variant_ids: img.variant_ids ?? [] });
-    }
+    addPrintifyImage(allImages, imageIndex, img);
   }
 
   return {
