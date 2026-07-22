@@ -4,16 +4,16 @@ import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
-const SITE_URL = process.env.SITE_URL || "https://printdrop.com";
+const SITE_URL = process.env.SITE_URL || "https://veliova.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Custom Print-on-Demand Apparel & Gifts | PrintDrop",
-    template: "%s | PrintDrop",
+    default: "Custom Print-on-Demand Apparel & Gifts | Veliova",
+    template: "%s | Veliova",
   },
   description:
-    "Shop unique custom graphic tees, hoodies, mugs, posters and gifts at PrintDrop. Artist-designed print-on-demand products shipped across the USA — free shipping on orders $50+.",
+    "Shop unique custom graphic tees, hoodies, mugs, posters and gifts at Veliova. Artist-designed print-on-demand products shipped across the USA — free shipping on orders $50+.",
   keywords: [
     "custom graphic tees", "print on demand USA", "artist designed t-shirts",
     "custom hoodies", "personalized gifts USA", "graphic tee shop",
@@ -24,14 +24,14 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: SITE_URL,
-    siteName: "PrintDrop",
-    title: "Custom Print-on-Demand Apparel & Gifts | PrintDrop",
-    description: "Shop unique custom graphic tees, hoodies, mugs, posters and gifts at PrintDrop. Artist-designed, printed & shipped across the USA.",
+    siteName: "Veliova",
+    title: "Custom Print-on-Demand Apparel & Gifts | Veliova",
+    description: "Shop unique custom graphic tees, hoodies, mugs, posters and gifts at Veliova. Artist-designed, printed & shipped across the USA.",
   },
   twitter: {
     card: "summary_large_image",
-    site: "@printdrop",
-    title: "Custom Print-on-Demand Apparel & Gifts | PrintDrop",
+    site: "@veliova",
+    title: "Custom Print-on-Demand Apparel & Gifts | Veliova",
     description: "Artist-designed graphic tees, hoodies & gifts. Printed on demand, shipped across the USA. Free shipping on orders $50+.",
   },
   robots: {
@@ -39,15 +39,16 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
   },
+  icons: { icon: "/logo.svg" },
   alternates: { canonical: SITE_URL },
 };
 
 const orgSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
-  "name": "PrintDrop",
+  "name": "Veliova",
   "url": SITE_URL,
-  "logo": `${SITE_URL}/logo.png`,
+  "logo": `${SITE_URL}/logo.svg`,
   "description": "Artist-designed print-on-demand apparel and gifts, shipped across the USA.",
   "sameAs": [],
 };
@@ -55,7 +56,7 @@ const orgSchema = {
 const storeSchema = {
   "@context": "https://schema.org",
   "@type": "OnlineStore",
-  "name": "PrintDrop",
+  "name": "Veliova",
   "url": SITE_URL,
   "description": "Custom graphic tees, hoodies, mugs and gifts — print on demand, fulfilled by Printful.",
   "currenciesAccepted": "USD",

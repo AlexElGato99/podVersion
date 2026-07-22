@@ -3,7 +3,7 @@ import { getProducts } from "@/lib/printful";
 import { productSlug } from "@/lib/utils";
 
 export async function GET() {
-  const baseUrl = process.env.SITE_URL || "https://printdrop.com";
+  const baseUrl = process.env.SITE_URL || "https://veliova.com";
   try {
     const products = await getProducts();
     const fields = products.map((p) => ({

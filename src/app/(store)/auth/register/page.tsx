@@ -73,7 +73,7 @@ export default function RegisterPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2">
             <Sparkles className="h-7 w-7 text-brand-600" />
-            <span className="text-2xl font-bold gradient-text">PrintDrop</span>
+            <span className="text-2xl font-bold gradient-text">Veliova</span>
           </Link>
           <h1 className="mt-6 text-2xl font-bold text-zinc-900">
             Create your account

@@ -87,7 +87,7 @@ const SECTION_INFO: Record<IntegrationSection, { title: string; description: str
     fields: [
       { key: "email_api_key", label: "Email API Key", secret: true, helper: "API key for your transactional email provider." },
       { key: "email_from_address", label: "From Email Address", placeholder: "orders@yourdomain.com" },
-      { key: "email_from_name", label: "From Name", placeholder: "PrintDrop" },
+      { key: "email_from_name", label: "From Name", placeholder: "Veliova" },
       { key: "email_support_address", label: "Support / Reply-To Email", placeholder: "support@yourdomain.com" },
     ],
   },

@@ -112,10 +112,10 @@ export default function Navbar() {
         <div className="flex h-[68px] items-center gap-3">
 
           {/* 1. Logo */}
-          <Link href="/" className="shrink-0">
+          <Link href="/" className="shrink-0" aria-label="Veliova home">
             <span className="text-xl font-black tracking-tight">
-              <span className="text-brand-600">Print</span>
-              <span className="text-zinc-900">Drop</span>
+              <span className="text-brand-600">Veli</span>
+              <span className="text-zinc-900">ova</span>
             </span>
           </Link>
 

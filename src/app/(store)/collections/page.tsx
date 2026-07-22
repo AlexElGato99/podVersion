@@ -3,19 +3,19 @@ import Image from "next/image";
 import { getCatalogCategories } from "@/lib/printful";
 
 export const metadata = {
-  title: "Curated Collections — Streetwear, Sportswear, Gifts & More | PrintDrop",
-  description: "Explore PrintDrop curated collections: Bestsellers, New Arrivals, Streetwear, Sportswear, Eco-friendly & Gift sets. Artist-designed print-on-demand products shipped across the USA.",
+  title: "Curated Collections — Streetwear, Sportswear, Gifts & More | Veliova",
+  description: "Explore Veliova curated collections: Bestsellers, New Arrivals, Streetwear, Sportswear, Eco-friendly & Gift sets. Artist-designed print-on-demand products shipped across the USA.",
   keywords: ["curated apparel collections", "streetwear graphic tees", "sportswear print on demand", "eco friendly shirts", "gift sets USA", "bestseller graphic tees"],
-  alternates: { canonical: "https://printdrop.com/collections" },
+  alternates: { canonical: "https://veliova.com/collections" },
   openGraph: {
-    title: "Curated Collections — Streetwear, Sportswear, Gifts & More | PrintDrop",
-    description: "Explore PrintDrop’s curated collections of custom apparel and gifts. Bestsellers, new arrivals, streetwear & more. Free shipping on orders $50+.",
-    url: "https://printdrop.com/collections",
+    title: "Curated Collections — Streetwear, Sportswear, Gifts & More | Veliova",
+    description: "Explore Veliova’s curated collections of custom apparel and gifts. Bestsellers, new arrivals, streetwear & more. Free shipping on orders $50+.",
+    url: "https://veliova.com/collections",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Curated Collections | PrintDrop",
+    title: "Curated Collections | Veliova",
     description: "Bestsellers, Streetwear, Sportswear, Eco-friendly & Gift collections. Artist-designed, shipped across the USA.",
   },
 };
@@ -53,7 +53,7 @@ export default async function CollectionsPage() {
 
         {/* Header */}
         <div className="py-10 text-center">
-          <p className="text-xs font-semibold uppercase tracking-widest text-brand-600 mb-2">PrintDrop</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-brand-600 mb-2">Veliova</p>
           <h1 className="text-4xl font-extrabold text-zinc-900 sm:text-5xl">Collections</h1>
           <p className="mt-3 max-w-lg mx-auto text-zinc-500 text-base">
             Curated groups of products — from streetwear to eco-friendly, gifts to seasonal drops.

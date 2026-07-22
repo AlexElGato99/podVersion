@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
@@ -430,7 +430,7 @@ export default function ProductClient({ product, productId }: ProductClientProps
           {/* Product details */}
           <div className="flex flex-col gap-6 lg:h-full lg:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-brand-600 mb-1">PrintDrop Original</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-brand-600 mb-1">Veliova Original</p>
               <h1 className="text-3xl font-extrabold leading-tight text-zinc-900 sm:text-[34px]">
                 {displayName}
               </h1>

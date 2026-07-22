@@ -7,19 +7,19 @@ import { createClient } from "@/lib/supabase/server";
 import ShopClient from "./ShopClient";
 
 export const metadata = {
-  title: "Shop Custom Graphic Tees, Hoodies & Gifts | PrintDrop",
-  description: "Browse PrintDrop’s full catalog of artist-designed graphic tees, hoodies, mugs, posters, stickers & more. Printed on demand, shipped across the USA. Free shipping on orders $50+.",
+  title: "Shop Custom Graphic Tees, Hoodies & Gifts | Veliova",
+  description: "Browse Veliova’s full catalog of artist-designed graphic tees, hoodies, mugs, posters, stickers & more. Printed on demand, shipped across the USA. Free shipping on orders $50+.",
   keywords: ["custom graphic tees", "buy graphic tees online", "print on demand shop", "custom hoodies USA", "unique gifts online", "artist designed shirts"],
-  alternates: { canonical: "https://printdrop.com/shop" },
+  alternates: { canonical: "https://veliova.com/shop" },
   openGraph: {
-    title: "Shop Custom Graphic Tees, Hoodies & Gifts | PrintDrop",
+    title: "Shop Custom Graphic Tees, Hoodies & Gifts | Veliova",
     description: "Artist-designed graphic tees, hoodies, mugs & more. Printed on demand and shipped across the USA. Free shipping on orders $50+.",
-    url: "https://printdrop.com/shop",
+    url: "https://veliova.com/shop",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Shop Custom Graphic Tees, Hoodies & Gifts | PrintDrop",
+    title: "Shop Custom Graphic Tees, Hoodies & Gifts | Veliova",
     description: "Artist-designed graphic tees, hoodies, mugs & more. Free US shipping on orders $50+.",
   },
 };

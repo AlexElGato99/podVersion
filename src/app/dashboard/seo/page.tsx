@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import {
@@ -82,12 +82,12 @@ interface SiteSettings {
    CONSTANTS
    ============================================================ */
 const PAGES: { id:string; label:string; path:string; icon:LucideIcon; defaultTitle:string; defaultDesc:string }[] = [
-  { id:"home",        label:"Homepage",    path:"/",            icon:Home,         defaultTitle:"Custom Print-on-Demand Apparel & Gifts | PrintDrop",              defaultDesc:"Shop unique artist-designed graphic tees, hoodies, mugs & gifts at PrintDrop. Free shipping on orders $50+." },
-  { id:"shop",        label:"Shop",        path:"/shop",        icon:ShoppingBag,  defaultTitle:"Shop Custom Graphic Tees, Hoodies & Gifts | PrintDrop",           defaultDesc:"Browse PrintDrop full catalog: graphic tees, hoodies, mugs, posters & more. Free US shipping on orders $50+." },
-  { id:"collections", label:"Collections", path:"/collections", icon:Package,      defaultTitle:"Curated Collections — Streetwear, Gifts | PrintDrop",             defaultDesc:"Explore PrintDrop curated collections: Bestsellers, Streetwear, Eco-friendly & Gift sets. Shipped across the USA." },
-  { id:"about",       label:"About",       path:"/about",       icon:Info,         defaultTitle:"About PrintDrop — Artist-Designed Custom Apparel & Gifts",        defaultDesc:"PrintDrop is an independent artist-run print-on-demand store. Unique graphic tees & gifts — printed on demand, fulfilled by Printful." },
-  { id:"cart",        label:"Cart",        path:"/cart",        icon:ShoppingCart, defaultTitle:"Your Cart | PrintDrop",                                            defaultDesc:"Review your PrintDrop order before checkout." },
-  { id:"checkout",    label:"Checkout",    path:"/checkout",    icon:CreditCard,   defaultTitle:"Secure Checkout | PrintDrop",                                     defaultDesc:"Complete your PrintDrop order securely." },
+  { id:"home",        label:"Homepage",    path:"/",            icon:Home,         defaultTitle:"Custom Print-on-Demand Apparel & Gifts | Veliova",              defaultDesc:"Shop unique artist-designed graphic tees, hoodies, mugs & gifts at Veliova. Free shipping on orders $50+." },
+  { id:"shop",        label:"Shop",        path:"/shop",        icon:ShoppingBag,  defaultTitle:"Shop Custom Graphic Tees, Hoodies & Gifts | Veliova",           defaultDesc:"Browse Veliova full catalog: graphic tees, hoodies, mugs, posters & more. Free US shipping on orders $50+." },
+  { id:"collections", label:"Collections", path:"/collections", icon:Package,      defaultTitle:"Curated Collections — Streetwear, Gifts | Veliova",             defaultDesc:"Explore Veliova curated collections: Bestsellers, Streetwear, Eco-friendly & Gift sets. Shipped across the USA." },
+  { id:"about",       label:"About",       path:"/about",       icon:Info,         defaultTitle:"About Veliova — Artist-Designed Custom Apparel & Gifts",        defaultDesc:"Veliova is an independent artist-run print-on-demand store. Unique graphic tees & gifts — printed on demand, fulfilled by Printful." },
+  { id:"cart",        label:"Cart",        path:"/cart",        icon:ShoppingCart, defaultTitle:"Your Cart | Veliova",                                            defaultDesc:"Review your Veliova order before checkout." },
+  { id:"checkout",    label:"Checkout",    path:"/checkout",    icon:CreditCard,   defaultTitle:"Secure Checkout | Veliova",                                     defaultDesc:"Complete your Veliova order securely." },
 ];
 
 const ROBOTS_OPTIONS = [
@@ -123,7 +123,7 @@ function emptyPage(p: typeof PAGES[0]): PageSEO {
     og_title:p.defaultTitle, og_description:p.defaultDesc, og_image:"",
     twitter_title:p.defaultTitle, twitter_description:p.defaultDesc, twitter_image:"",
     twitter_card_type:"summary_large_image",
-    canonical:`https://printdrop.com${p.path}`, robots:"index,follow",
+    canonical:`https://veliova.com${p.path}`, robots:"index,follow",
     robots_advanced:[], schema_enabled:true, schema_type:"WebPage",
     breadcrumb_title:p.label, focus_keyword:"", keyword_synonyms:"",
     is_cornerstone:false, article_type:"Article",
@@ -132,11 +132,11 @@ function emptyPage(p: typeof PAGES[0]): PageSEO {
 }
 
 const DEFAULT_SITE: SiteSettings = {
-  site_name:"PrintDrop", title_separator:" | ", default_og_image:"",
-  twitter_handle:"@printdrop", site_url:"https://printdrop.com",
+  site_name:"Veliova", title_separator:" | ", default_og_image:"",
+  twitter_handle:"@veliova", site_url:"https://veliova.com",
   google_verification:"", bing_verification:"",
   pinterest_verification:"", yandex_verification:"",
-  organization_name:"PrintDrop", organization_logo:"", organization_url:"https://printdrop.com",
+  organization_name:"Veliova", organization_logo:"", organization_url:"https://veliova.com",
   organization_type:"OnlineStore",
   local_business_name:"", local_business_street:"", local_business_city:"",
   local_business_state:"", local_business_zip:"", local_business_country:"US",
@@ -269,7 +269,7 @@ function SerpPreview({ title, description, url, mode }: { title:string; descript
         <div style={{ width:16, height:16, borderRadius:mode==="mobile"?999:4, background:"var(--bg-tertiary)" }} />
         {mode==="desktop" && (
           <div>
-            <p style={{ fontSize:12, color:"var(--text-primary)", margin:0 }}>PrintDrop</p>
+            <p style={{ fontSize:12, color:"var(--text-primary)", margin:0 }}>Veliova</p>
             <p style={{ fontSize:11, color:"var(--text-muted)", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:400 }}>{b}</p>
           </div>
         )}
@@ -292,7 +292,7 @@ function SocialCard({ title, description, image, domain }: { title:string; descr
         }
       </div>
       <div style={{ padding:"10px 12px", borderTop:"1px solid var(--border)" }}>
-        <p style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.06em", color:"var(--text-muted)", margin:"0 0 3px" }}>{domain||"printdrop.com"}</p>
+        <p style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.06em", color:"var(--text-muted)", margin:"0 0 3px" }}>{domain||"veliova.com"}</p>
         <p style={{ fontSize:13, fontWeight:600, color:"var(--text-primary)", margin:"0 0 2px", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{title||"Page title"}</p>
         <p style={{ fontSize:11, color:"var(--text-secondary)", margin:0, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" } as React.CSSProperties}>{description||"Page description"}</p>
       </div>
@@ -554,7 +554,7 @@ export default function SeoSettingsPage() {
                   ))}
                 </div>
               </div>
-              <SerpPreview title={cur.title} description={cur.description} url={cur.canonical||`https://printdrop.com${cur.path}`} mode={serpMode}/>
+              <SerpPreview title={cur.title} description={cur.description} url={cur.canonical||`https://veliova.com${cur.path}`} mode={serpMode}/>
             </div>
 
             {/* Focus Keyword */}
@@ -595,7 +595,7 @@ export default function SeoSettingsPage() {
             <Accordion label="Basic SEO — Title & Description" icon={Search} open={openAcc.includes("basic")} onToggle={()=>toggleAcc("basic")}>
               <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
                 <Field label="SEO Title" hint="Optimal: 50–60 characters. Put focus keyword first.">
-                  <input style={s.input} type="text" value={cur.title} onChange={e=>upd("title",e.target.value)} placeholder="Page Title | PrintDrop"/>
+                  <input style={s.input} type="text" value={cur.title} onChange={e=>upd("title",e.target.value)} placeholder="Page Title | Veliova"/>
                   <CharCount val={cur.title} max={60} warn={50}/>
                 </Field>
                 <Field label="Meta Description" hint="Optimal: 120–160 characters. Include focus keyword + CTA.">
@@ -606,7 +606,7 @@ export default function SeoSettingsPage() {
                   <Field label="Canonical URL">
                     <div style={{ position:"relative" }}>
                       <Link2 size={12} color="var(--text-muted)" style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)" }}/>
-                      <input style={{ ...s.input, paddingLeft:30 }} type="url" value={cur.canonical} onChange={e=>upd("canonical",e.target.value)} placeholder={`https://printdrop.com${cur.path}`}/>
+                      <input style={{ ...s.input, paddingLeft:30 }} type="url" value={cur.canonical} onChange={e=>upd("canonical",e.target.value)} placeholder={`https://veliova.com${cur.path}`}/>
                     </div>
                   </Field>
                   <Field label="Breadcrumb Title" hint="Displayed in breadcrumb navigation">
@@ -635,7 +635,7 @@ export default function SeoSettingsPage() {
                 </div>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                   <Field label="OG Image URL — 1200×630px">
-                    <input style={s.input} type="url" value={cur.og_image} onChange={e=>upd("og_image",e.target.value)} placeholder="https://printdrop.com/og/page.jpg"/>
+                    <input style={s.input} type="url" value={cur.og_image} onChange={e=>upd("og_image",e.target.value)} placeholder="https://veliova.com/og/page.jpg"/>
                   </Field>
                   <Field label="Article Type">
                     <select style={{ ...s.select, width:"100%" }} value={cur.article_type} onChange={e=>upd("article_type",e.target.value)}>
@@ -669,7 +669,7 @@ export default function SeoSettingsPage() {
                 </div>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                   <Field label="Twitter Image — 1200×628px">
-                    <input style={s.input} type="url" value={cur.twitter_image} onChange={e=>upd("twitter_image",e.target.value)} placeholder="https://printdrop.com/og/page.jpg"/>
+                    <input style={s.input} type="url" value={cur.twitter_image} onChange={e=>upd("twitter_image",e.target.value)} placeholder="https://veliova.com/og/page.jpg"/>
                   </Field>
                   <Field label="Card Type">
                     <select style={{ ...s.select, width:"100%" }} value={cur.twitter_card_type} onChange={e=>upd("twitter_card_type",e.target.value)}>
@@ -680,7 +680,7 @@ export default function SeoSettingsPage() {
                     </select>
                   </Field>
                 </div>
-                <SocialCard title={cur.twitter_title||cur.title} description={cur.twitter_description||cur.description} image={cur.twitter_image||cur.og_image} domain="PRINTDROP.COM"/>
+                <SocialCard title={cur.twitter_title||cur.title} description={cur.twitter_description||cur.description} image={cur.twitter_image||cur.og_image} domain="VELIOVA.COM"/>
               </div>
             </Accordion>
 
@@ -999,7 +999,7 @@ ${sitemap.filter(e=>e.include).map(e=>{
             <h2 style={{ fontSize:13, fontWeight:700, color:"var(--text-primary)", margin:"0 0 16px", display:"flex", alignItems:"center", gap:8 }}><Globe size={14} color="#ea580c"/>Site Identity</h2>
             <div style={{ display:"grid", gap:14, gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))" }}>
               <Field label="Site Name" hint={`Preview: Page${site.title_separator}${site.site_name}`}>
-                <input style={s.input} type="text" value={site.site_name} onChange={e=>updSite("site_name",e.target.value)} placeholder="PrintDrop"/>
+                <input style={s.input} type="text" value={site.site_name} onChange={e=>updSite("site_name",e.target.value)} placeholder="Veliova"/>
               </Field>
               <div>
                 <span style={s.label}>Title Separator</span>
@@ -1012,14 +1012,14 @@ ${sitemap.filter(e=>e.include).map(e=>{
                 </div>
               </div>
               <Field label="Site URL">
-                <input style={s.input} type="url" value={site.site_url} onChange={e=>updSite("site_url",e.target.value)} placeholder="https://printdrop.com"/>
+                <input style={s.input} type="url" value={site.site_url} onChange={e=>updSite("site_url",e.target.value)} placeholder="https://veliova.com"/>
               </Field>
               <Field label="Twitter / X Handle">
-                <input style={s.input} type="text" value={site.twitter_handle} onChange={e=>updSite("twitter_handle",e.target.value)} placeholder="@printdrop"/>
+                <input style={s.input} type="text" value={site.twitter_handle} onChange={e=>updSite("twitter_handle",e.target.value)} placeholder="@veliova"/>
               </Field>
               <div style={{ gridColumn:"1/-1" }}>
                 <Field label="Default OG Image URL" hint="1200×630px — used when a page has no specific OG image">
-                  <input style={s.input} type="url" value={site.default_og_image} onChange={e=>updSite("default_og_image",e.target.value)} placeholder="https://printdrop.com/og-default.jpg"/>
+                  <input style={s.input} type="url" value={site.default_og_image} onChange={e=>updSite("default_og_image",e.target.value)} placeholder="https://veliova.com/og-default.jpg"/>
                 </Field>
               </div>
             </div>
@@ -1030,7 +1030,7 @@ ${sitemap.filter(e=>e.include).map(e=>{
             <h2 style={{ fontSize:13, fontWeight:700, color:"var(--text-primary)", margin:"0 0 16px", display:"flex", alignItems:"center", gap:8 }}><BookOpen size={14} color="#ea580c"/>Organization Schema</h2>
             <div style={{ display:"grid", gap:14, gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))" }}>
               <Field label="Organization Name">
-                <input style={s.input} type="text" value={site.organization_name} onChange={e=>updSite("organization_name",e.target.value)} placeholder="PrintDrop"/>
+                <input style={s.input} type="text" value={site.organization_name} onChange={e=>updSite("organization_name",e.target.value)} placeholder="Veliova"/>
               </Field>
               <Field label="Organization Type">
                 <select style={{ ...s.select, width:"100%" }} value={site.organization_type} onChange={e=>updSite("organization_type",e.target.value)}>
@@ -1038,10 +1038,10 @@ ${sitemap.filter(e=>e.include).map(e=>{
                 </select>
               </Field>
               <Field label="Logo URL">
-                <input style={s.input} type="url" value={site.organization_logo} onChange={e=>updSite("organization_logo",e.target.value)} placeholder="https://printdrop.com/logo.png"/>
+                <input style={s.input} type="url" value={site.organization_logo} onChange={e=>updSite("organization_logo",e.target.value)} placeholder="https://veliova.com/logo.svg"/>
               </Field>
               <Field label="Organization URL">
-                <input style={s.input} type="url" value={site.organization_url} onChange={e=>updSite("organization_url",e.target.value)} placeholder="https://printdrop.com"/>
+                <input style={s.input} type="url" value={site.organization_url} onChange={e=>updSite("organization_url",e.target.value)} placeholder="https://veliova.com"/>
               </Field>
             </div>
           </div>
@@ -1052,7 +1052,7 @@ ${sitemap.filter(e=>e.include).map(e=>{
             <p style={{ fontSize:12, color:"var(--text-muted)", margin:"0 0 16px" }}>Fill this to enable LocalBusiness schema — shows your address, phone & hours in Google search.</p>
             <div style={{ display:"grid", gap:14, gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))" }}>
               <Field label="Business Name">
-                <input style={s.input} type="text" value={site.local_business_name} onChange={e=>updSite("local_business_name",e.target.value)} placeholder="PrintDrop HQ"/>
+                <input style={s.input} type="text" value={site.local_business_name} onChange={e=>updSite("local_business_name",e.target.value)} placeholder="Veliova HQ"/>
               </Field>
               <Field label="Street Address">
                 <input style={s.input} type="text" value={site.local_business_street} onChange={e=>updSite("local_business_street",e.target.value)} placeholder="123 Main St"/>
@@ -1073,7 +1073,7 @@ ${sitemap.filter(e=>e.include).map(e=>{
                 <input style={s.input} type="text" value={site.local_business_phone} onChange={e=>updSite("local_business_phone",e.target.value)} placeholder="+1-555-000-0000"/>
               </Field>
               <Field label="Email">
-                <input style={s.input} type="email" value={site.local_business_email} onChange={e=>updSite("local_business_email",e.target.value)} placeholder="hello@printdrop.com"/>
+                <input style={s.input} type="email" value={site.local_business_email} onChange={e=>updSite("local_business_email",e.target.value)} placeholder="hello@veliova.com"/>
               </Field>
               <Field label="Price Range">
                 <input style={s.input} type="text" value={site.local_business_price_range} onChange={e=>updSite("local_business_price_range",e.target.value)} placeholder="$$ or $10–$50"/>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64" fill="none">
+  <rect x="6" y="6" width="52" height="52" rx="16" fill="#ea580c" fill-opacity="0.1"/>
+  <path d="M17 16h9.2L32 37.5 37.8 16H47l-10.6 32h-8.8L17 16Z" fill="#ea580c"/>
+  <path d="M24.5 48h15" stroke="#ea580c" stroke-width="4" stroke-linecap="round" opacity="0.45"/>
+  <text x="72" y="41" fill="#18181b" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800" letter-spacing="0">Veliova</text>
+</svg>

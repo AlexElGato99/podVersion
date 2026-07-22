@@ -11,14 +11,14 @@ import {
 } from "lucide-react";
 
 export const metadata = {
-  title: "About PrintDrop — Artist-Designed Custom Apparel & Gifts, Shipped Across the USA",
-  description: "PrintDrop is an independent artist-run print-on-demand store based in the USA. We create unique graphic tees, hoodies, mugs and gifts — every product is printed on demand and fulfilled by Printful.",
-  keywords: ["about printdrop", "independent artist store", "custom apparel USA", "graphic tee artist", "print on demand brand", "artist designed clothing"],
-  alternates: { canonical: "https://printdrop.com/about" },
+  title: "About Veliova — Artist-Designed Custom Apparel & Gifts, Shipped Across the USA",
+  description: "Veliova is an independent artist-run print-on-demand store based in the USA. We create unique graphic tees, hoodies, mugs and gifts — every product is printed on demand and fulfilled by Printful.",
+  keywords: ["about veliova", "independent artist store", "custom apparel USA", "graphic tee artist", "print on demand brand", "artist designed clothing"],
+  alternates: { canonical: "https://veliova.com/about" },
   openGraph: {
-    title: "About PrintDrop — Artist-Designed Custom Apparel & Gifts",
+    title: "About Veliova — Artist-Designed Custom Apparel & Gifts",
     description: "We’re an independent artist-run POD store. Unique graphic tees, hoodies & gifts — printed on demand, shipped across the USA by Printful.",
-    url: "https://printdrop.com/about",
+    url: "https://veliova.com/about",
     type: "website",
   },
 };
@@ -67,7 +67,7 @@ export default function AboutPage() {
             Bringing Creativity to <span className="gradient-text">Life</span>
           </h1>
           <p className="text-lg text-zinc-500 leading-relaxed">
-            PrintDrop was founded with a simple belief: everyone deserves to wear
+            Veliova was founded with a simple belief: everyone deserves to wear
             something that tells their story. We partner with Printful to deliver
             premium quality print-on-demand products that combine stunning
             designs with world-class manufacturing.
@@ -137,12 +137,12 @@ export default function AboutPage() {
       <section className="py-16 bg-zinc-50 border-t border-zinc-200">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <div className="prose prose-zinc max-w-none">
-            <h2 className="text-2xl font-bold text-zinc-900 mb-6">About PrintDrop — Artist-Designed Custom Apparel for the USA</h2>
+            <h2 className="text-2xl font-bold text-zinc-900 mb-6">About Veliova — Artist-Designed Custom Apparel for the USA</h2>
             <div className="grid gap-8 sm:grid-cols-2">
               <div>
                 <h3 className="text-lg font-semibold text-zinc-800 mb-3">What We Make</h3>
                 <p className="text-sm text-zinc-600 leading-relaxed">
-                  PrintDrop is an independent artist-run store specializing in unique graphic t-shirts, hoodies,
+                  Veliova is an independent artist-run store specializing in unique graphic t-shirts, hoodies,
                   sweatshirts, mugs, posters, stickers, and accessories. Every single product starts as original
                   artwork — designed with a specific mood, message, or aesthetic in mind — then printed on
                   premium blanks using Direct-to-Garment (DTG) technology or embroidery.
@@ -170,7 +170,7 @@ export default function AboutPage() {
               <div>
                 <h3 className="text-lg font-semibold text-zinc-800 mb-3">How It Works</h3>
                 <p className="text-sm text-zinc-600 leading-relaxed">
-                  PrintDrop is powered by <strong>Printful</strong>, one of the world&apos;s leading print-on-demand
+                  Veliova is powered by <strong>Printful</strong>, one of the world&apos;s leading print-on-demand
                   fulfillment companies. When you place an order, Printful prints and ships your item directly
                   to your door — typically within 7–10 business days for US orders. This partnership lets us
                   focus on what we do best: creating great art and curating products you&apos;ll love.
@@ -188,7 +188,7 @@ export default function AboutPage() {
             </div>
 
             <div className="mt-8 p-5 bg-white rounded-2xl border border-zinc-200">
-              <h3 className="text-base font-semibold text-zinc-800 mb-2">Popular searches that bring people to PrintDrop</h3>
+              <h3 className="text-base font-semibold text-zinc-800 mb-2">Popular searches that bring people to Veliova</h3>
               <p className="text-sm text-zinc-500 leading-relaxed">
                 Customers find us searching for:{" "}
                 <span className="text-zinc-700">custom graphic tees USA</span>,{" "}

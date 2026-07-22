@@ -43,7 +43,7 @@ export default function Footer() {
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
               <Sparkles className="h-6 w-6 text-brand-400" />
-              <span className="text-xl font-bold gradient-text">PrintDrop</span>
+              <span className="text-xl font-bold gradient-text">Veliova</span>
             </Link>
             <p className="text-sm text-zinc-500 leading-relaxed mb-6">
               Premium print-on-demand products crafted with care and shipped worldwide.
@@ -89,14 +89,14 @@ export default function Footer() {
         <hr className="my-10 border-zinc-200" />
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-zinc-600">
-          <p>© {new Date().getFullYear()} PrintDrop. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Veliova. All rights reserved.</p>
           <div className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
             <a
-              href="mailto:hello@printdrop.store"
+              href="mailto:hello@veliova.com"
               className="hover:text-brand-600 transition-colors"
             >
-              hello@printdrop.store
+              hello@veliova.com
             </a>
           </div>
         </div>

@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import Image from "next/image";
 
 // Always render with fresh DB settings so homepage section layout (max_products)
@@ -497,12 +497,12 @@ export default async function HomePage() {
               "@context": "https://schema.org",
               "@type": "ItemList",
               "name": "Best-Selling Custom Print-on-Demand Products",
-              "description": "Top custom graphic tees, hoodies, mugs, stickers and accessories printed on demand by PrintDrop.",
-              "url": "https://printdrop.com",
+              "description": "Top custom graphic tees, hoodies, mugs, stickers and accessories printed on demand by Veliova.",
+              "url": "https://veliova.com",
               "itemListElement": featuredProducts.map((p, i) => ({
                 "@type": "ListItem",
                 "position": i + 1,
-                "url": `https://printdrop.com/shop/${productSlug(p.name, p.id)}`,
+                "url": `https://veliova.com/shop/${productSlug(p.name, p.id)}`,
                 "name": p.name,
               })),
             }),

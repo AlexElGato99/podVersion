@@ -1,6 +1,6 @@
 /** @type {import('next-sitemap').IConfig} */
 const config = {
-  siteUrl: process.env.SITE_URL || "https://printdrop.com",
+  siteUrl: process.env.SITE_URL || "https://veliova.com",
   generateRobotsTxt: true,
   changefreq: "weekly",
   priority: 0.7,
@@ -19,7 +19,7 @@ const config = {
       { userAgent: "*", disallow: ["/dashboard", "/account", "/auth", "/api", "/checkout", "/cart"] },
     ],
     additionalSitemaps: [
-      `${process.env.SITE_URL || "https://printdrop.com"}/server-sitemap.xml`,
+      `${process.env.SITE_URL || "https://veliova.com"}/server-sitemap.xml`,
     ],
   },
 };

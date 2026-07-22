@@ -12,8 +12,8 @@ Disallow: /checkout
 Disallow: /cart
 
 # Host
-Host: https://printdrop.com
+Host: https://veliova.com
 
 # Sitemaps
-Sitemap: https://printdrop.com/sitemap.xml
-Sitemap: https://printdrop.com/server-sitemap.xml
+Sitemap: https://veliova.com/sitemap.xml
+Sitemap: https://veliova.com/server-sitemap.xml

@@ -7,7 +7,7 @@ import { formatPrice } from "@/lib/utils";
 
 export const metadata = {
   title: "My Orders",
-  description: "View your PrintDrop order history and shipment tracking.",
+  description: "View your Veliova order history and shipment tracking.",
   robots: { index: false },
 };
 
