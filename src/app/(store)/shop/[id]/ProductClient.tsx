@@ -194,13 +194,18 @@ export default function ProductClient({ product, productId }: ProductClientProps
 
   // Gallery: all_images (Printify, filtered to selected options) OR per-color mockups (Printful)
   const galleryImages: string[] = useMemo(() => {
+    const prioritizeSelectedImage = (images: string[]) => {
+      if (!selectedVariantImage) return images;
+      return [selectedVariantImage, ...images.filter((src) => src !== selectedVariantImage)];
+    };
+
     if (all_images && all_images.length > 0) {
       const optionImgs = all_images
         .filter((img) => !img.variant_ids.length || img.variant_ids.some((id) => selectedGalleryVariantIds.has(id)))
         .map((img) => img.src);
       // If option filtering yields images, use them; otherwise show all (no variant mappings)
-      if (optionImgs.length > 0) return optionImgs;
-      return all_images.map((img) => img.src);
+      if (optionImgs.length > 0) return prioritizeSelectedImage(optionImgs);
+      return prioritizeSelectedImage(all_images.map((img) => img.src));
     }
     // Printful: collect unique mockups per color
     const seen = new Set<string>();
@@ -210,8 +215,8 @@ export default function ProductClient({ product, productId }: ProductClientProps
       if (src && !seen.has(src)) { seen.add(src); imgs.push(src); }
     }
     if (sync_product.thumbnail_url && !seen.has(sync_product.thumbnail_url)) imgs.push(sync_product.thumbnail_url);
-    return imgs;
-  }, [all_images, selectedGalleryVariantIds, colorDataMap, sync_product.thumbnail_url]);
+    return prioritizeSelectedImage(imgs);
+  }, [all_images, selectedGalleryVariantIds, selectedVariantImage, colorDataMap, sync_product.thumbnail_url]);
 
   useEffect(() => {
     setPinnedImage(galleryImages[0] ?? null);
