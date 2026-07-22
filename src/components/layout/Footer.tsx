@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles, MessageCircle, Camera, Users, Play, Mail, MapPin } from "lucide-react";
+import { MessageCircle, Camera, Users, Play, Mail, MapPin } from "lucide-react";
 
 const footerLinks = {
   Shop: [
@@ -41,9 +41,11 @@ export default function Footer() {
         <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <Sparkles className="h-6 w-6 text-brand-400" />
-              <span className="text-xl font-bold gradient-text">Veliova</span>
+            <Link href="/" className="inline-flex items-center mb-4" aria-label="Veliova home">
+              <span className="text-xl font-black tracking-tight">
+                <span className="text-brand-600">Veli</span>
+                <span className="text-zinc-900">ova</span>
+              </span>
             </Link>
             <p className="text-sm text-zinc-500 leading-relaxed mb-6">
               Premium print-on-demand products crafted with care and shipped worldwide.
