@@ -42,6 +42,7 @@ const ENV_FALLBACKS: Record<SettingsSection, Record<string, string | undefined>>
   printify: {
     printify_api_key: process.env.PRINTIFY_API_KEY,
     printify_shop_id: process.env.PRINTIFY_SHOP_ID,
+    printify_webhook_secret: process.env.PRINTIFY_WEBHOOK_SECRET,
   },
   general: {
     /** "printful" | "printify" | "both" */

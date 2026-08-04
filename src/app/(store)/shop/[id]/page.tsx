@@ -90,7 +90,11 @@ export default async function ProductPage({ params }: Props) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
         />
-        <ProductClient product={product} productId={productId} />
+        <ProductClient
+          product={product}
+          productId={productId}
+          printifyShopId={result.source === "printify" ? result.data.shop_id : undefined}
+        />
       </>
     );
   } catch {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { getProduct, createPrintfulOrder, type PrintfulProductDetail } from "@/lib/printful";
+import { getPrintifyProduct, createPrintifyOrder } from "@/lib/printify";
 import { capturePayPalOrder } from "@/lib/paypal";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 
@@ -17,6 +18,9 @@ interface CartItemInput {
   imageUrl?: string;
   size?: string;
   color?: string;
+  source?: "printful" | "printify";
+  printifyProductId?: string;
+  printifyShopId?: string;
 }
 
 interface ShippingInput {
@@ -29,6 +33,19 @@ interface ShippingInput {
   state: string;
   zip: string;
   country: string;
+}
+
+interface ValidatedItem {
+  name: string;
+  quantity: number;
+  unitAmount: number;
+  variantId: number;
+  imageUrl?: string;
+  size?: string;
+  color?: string;
+  source: "printful" | "printify";
+  printifyProductId?: string;
+  printifyShopId?: string;
 }
 
 export async function POST(req: Request) {
@@ -51,18 +68,52 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Payment not completed" }, { status: 402 });
     }
 
-    // 2. Re-validate prices from Printful (authoritative source, never trust client)
-    const productCache = new Map<number, PrintfulProductDetail>();
-    const orderItems: { name: string; quantity: number; unitAmount: number; variantId: number; imageUrl?: string; size?: string; color?: string }[] = [];
+    // 2. Re-validate prices from each item's own provider — never trust client-supplied prices.
+    const printfulCache = new Map<number, PrintfulProductDetail>();
+    const printifyCache = new Map<string, Awaited<ReturnType<typeof getPrintifyProduct>>>();
+    const orderItems: ValidatedItem[] = [];
 
     for (const item of items) {
-      if (!item.productId || !item.variantId || !Number.isInteger(item.quantity) || item.quantity < 1) {
+      if (!item.variantId || !Number.isInteger(item.quantity) || item.quantity < 1) {
         return NextResponse.json({ error: "Invalid cart item" }, { status: 400 });
       }
-      let product = productCache.get(item.productId);
+
+      if (item.source === "printify") {
+        if (!item.printifyProductId || !item.printifyShopId) {
+          return NextResponse.json({ error: "Missing Printify product reference" }, { status: 400 });
+        }
+        const cacheKey = `${item.printifyShopId}:${item.printifyProductId}`;
+        let product = printifyCache.get(cacheKey);
+        if (!product) {
+          product = await getPrintifyProduct(item.printifyShopId, item.printifyProductId);
+          printifyCache.set(cacheKey, product);
+        }
+        const variant = product.variants.find((v) => v.id === item.variantId);
+        if (!variant) {
+          return NextResponse.json({ error: `Variant ${item.variantId} not found` }, { status: 400 });
+        }
+        orderItems.push({
+          name: item.name || product.title,
+          quantity: item.quantity,
+          unitAmount: variant.price / 100,
+          variantId: item.variantId,
+          imageUrl: item.imageUrl,
+          size: item.size,
+          color: item.color,
+          source: "printify",
+          printifyProductId: item.printifyProductId,
+          printifyShopId: item.printifyShopId,
+        });
+        continue;
+      }
+
+      if (!item.productId) {
+        return NextResponse.json({ error: "Invalid cart item" }, { status: 400 });
+      }
+      let product = printfulCache.get(item.productId);
       if (!product) {
         product = await getProduct(String(item.productId));
-        productCache.set(item.productId, product);
+        printfulCache.set(item.productId, product);
       }
       const variant = product.sync_variants.find((v) => v.id === item.variantId);
       if (!variant) {
@@ -76,6 +127,7 @@ export async function POST(req: Request) {
         imageUrl: item.imageUrl,
         size: item.size,
         color: item.color,
+        source: "printful",
       });
     }
 
@@ -84,38 +136,19 @@ export async function POST(req: Request) {
     const taxAmount = Math.round(subtotal * 0.08 * 100) / 100;
     const total = subtotal + shippingAmount + taxAmount;
 
-    // 3. Place the production order with Printful
-    let printfulOrderId: number | null = null;
-    let printfulStatus = "pending";
-    let printfulError: string | null = null;
-    try {
-      const printfulOrder = await createPrintfulOrder({
-        recipient: {
-          name: `${shipping.firstName} ${shipping.lastName}`,
-          address1: shipping.address,
-          city: shipping.city,
-          state_code: shipping.state,
-          country_code: shipping.country,
-          zip: shipping.zip,
-          email: shipping.email,
-          phone: shipping.phone,
-        },
-        items: orderItems.map((i) => ({
-          sync_variant_id: i.variantId,
-          quantity: i.quantity,
-          retail_price: i.unitAmount.toFixed(2),
-        })),
-        externalId: capture.captureId,
-      });
-      printfulOrderId = printfulOrder.id;
-      printfulStatus = printfulOrder.status;
-    } catch (err) {
-      // Payment already captured — log loudly so it can be fulfilled manually, but don't fail the customer's order.
-      printfulError = err instanceof Error ? err.message : String(err);
-      console.error("[api/paypal/capture-order] Printful order creation failed:", printfulError);
+    // 3. Group items by fulfillment provider — a cart spanning both providers
+    // (or multiple Printify shops) becomes one order row per group, since
+    // each ships independently with its own tracking, same as a multi-shop
+    // Etsy cart splits into separate orders.
+    const groups = new Map<string, { provider: "printful" | "printify"; printifyShopId?: string; items: ValidatedItem[] }>();
+    for (const item of orderItems) {
+      const key = item.source === "printify" ? `printify:${item.printifyShopId}` : "printful";
+      if (!groups.has(key)) {
+        groups.set(key, { provider: item.source, printifyShopId: item.printifyShopId, items: [] });
+      }
+      groups.get(key)!.items.push(item);
     }
 
-    // 4. Persist the order in Supabase
     let userId: string | null = null;
     try {
       const supabase = await createServerClient();
@@ -125,65 +158,146 @@ export async function POST(req: Request) {
       // guest checkout
     }
 
-    const { data: dbOrder, error: dbError } = await supabaseAdmin
-      .from("orders")
-      .insert({
-        user_id: userId,
-        email: shipping.email,
-        printful_order_id: printfulOrderId ? String(printfulOrderId) : null,
-        paypal_order_id: paypalOrderId,
-        payment_status: "paid",
-        status: printfulOrderId ? "processing" : "pending",
-        total_amount: total,
-        subtotal_amount: subtotal,
-        shipping_amount: shippingAmount,
-        tax_amount: taxAmount,
-        currency: "USD",
-        shipping_address: shipping,
-        items: orderItems,
-        fulfillment_error: printfulError,
-      })
-      .select("id")
-      .single();
+    const results: {
+      orderId: string | null;
+      provider: "printful" | "printify";
+      providerOrderId: string | null;
+      status: string;
+      fulfillmentError: string | null;
+    }[] = [];
 
-    if (dbError) {
-      console.error("[api/paypal/capture-order] Failed to save order", dbError);
-    }
+    // 4. Place a production order per group, then persist + notify per row.
+    for (const group of groups.values()) {
+      const groupSubtotal = group.items.reduce((s, i) => s + i.unitAmount * i.quantity, 0);
+      const share = subtotal > 0 ? groupSubtotal / subtotal : 0;
+      const groupShipping = Math.round(shippingAmount * share * 100) / 100;
+      const groupTax = Math.round(taxAmount * share * 100) / 100;
+      const groupTotal = groupSubtotal + groupShipping + groupTax;
 
-    // 5. Notify the admin dashboard (bell icon) — best-effort, never fails the order.
-    try {
-      const customerName = `${shipping.firstName} ${shipping.lastName}`;
-      const itemCount = orderItems.reduce((s, i) => s + i.quantity, 0);
-      await supabaseAdmin.from("notifications").insert({
-        type: "new_order",
-        title: `New order from ${customerName}`,
-        message: `${itemCount} item${itemCount === 1 ? "" : "s"} — $${total.toFixed(2)}`,
-        metadata: {
-          order_id: dbOrder?.id ?? null,
-          printful_order_id: printfulOrderId,
-          total_amount: total,
-          customer_name: customerName,
-          email: shipping.email,
-        },
-      });
-      if (printfulError) {
-        await supabaseAdmin.from("notifications").insert({
-          type: "fulfillment_error",
-          title: `Fulfillment failed for ${customerName}'s order`,
-          message: printfulError,
-          metadata: { order_id: dbOrder?.id ?? null, email: shipping.email },
-        });
+      let providerOrderId: string | null = null;
+      let providerStatus = "pending";
+      let fulfillmentError: string | null = null;
+
+      try {
+        if (group.provider === "printful") {
+          const printfulOrder = await createPrintfulOrder({
+            recipient: {
+              name: `${shipping.firstName} ${shipping.lastName}`,
+              address1: shipping.address,
+              city: shipping.city,
+              state_code: shipping.state,
+              country_code: shipping.country,
+              zip: shipping.zip,
+              email: shipping.email,
+              phone: shipping.phone,
+            },
+            items: group.items.map((i) => ({
+              sync_variant_id: i.variantId,
+              quantity: i.quantity,
+              retail_price: i.unitAmount.toFixed(2),
+            })),
+            externalId: capture.captureId,
+          });
+          providerOrderId = String(printfulOrder.id);
+          providerStatus = printfulOrder.status;
+        } else {
+          const printifyOrder = await createPrintifyOrder({
+            shopId: group.printifyShopId!,
+            lineItems: group.items.map((i) => ({
+              product_id: i.printifyProductId!,
+              variant_id: i.variantId,
+              quantity: i.quantity,
+            })),
+            addressTo: {
+              first_name: shipping.firstName,
+              last_name: shipping.lastName,
+              email: shipping.email,
+              phone: shipping.phone,
+              country: shipping.country,
+              region: shipping.state,
+              address1: shipping.address,
+              city: shipping.city,
+              zip: shipping.zip,
+            },
+            externalId: `${capture.captureId}-${group.printifyShopId}`,
+          });
+          providerOrderId = printifyOrder.id;
+          providerStatus = printifyOrder.status;
+        }
+      } catch (err) {
+        // Payment already captured — log loudly so it can be fulfilled manually, but don't fail the customer's order.
+        fulfillmentError = err instanceof Error ? err.message : String(err);
+        console.error(`[api/paypal/capture-order] ${group.provider} order creation failed:`, fulfillmentError);
       }
-    } catch (notifyErr) {
-      console.error("[api/paypal/capture-order] Failed to create notification", notifyErr);
+
+      const { data: dbOrder, error: dbError } = await supabaseAdmin
+        .from("orders")
+        .insert({
+          user_id: userId,
+          email: shipping.email,
+          provider: group.provider,
+          printful_order_id: group.provider === "printful" && providerOrderId ? providerOrderId : null,
+          printify_order_id: group.provider === "printify" && providerOrderId ? providerOrderId : null,
+          paypal_order_id: paypalOrderId,
+          payment_status: "paid",
+          status: providerOrderId ? "processing" : "pending",
+          total_amount: groupTotal,
+          subtotal_amount: groupSubtotal,
+          shipping_amount: groupShipping,
+          tax_amount: groupTax,
+          currency: "USD",
+          shipping_address: shipping,
+          items: group.items,
+          fulfillment_error: fulfillmentError,
+        })
+        .select("id")
+        .single();
+
+      if (dbError) {
+        console.error("[api/paypal/capture-order] Failed to save order", dbError);
+      }
+
+      results.push({
+        orderId: dbOrder?.id ?? null,
+        provider: group.provider,
+        providerOrderId,
+        status: providerStatus,
+        fulfillmentError,
+      });
+
+      // Notify the admin dashboard (bell icon) — best-effort, never fails the order.
+      try {
+        const customerName = `${shipping.firstName} ${shipping.lastName}`;
+        const itemCount = group.items.reduce((s, i) => s + i.quantity, 0);
+        await supabaseAdmin.from("notifications").insert({
+          type: "new_order",
+          title: `New order from ${customerName}`,
+          message: `${itemCount} item${itemCount === 1 ? "" : "s"} — $${groupTotal.toFixed(2)} (${group.provider})`,
+          metadata: {
+            order_id: dbOrder?.id ?? null,
+            provider: group.provider,
+            provider_order_id: providerOrderId,
+            total_amount: groupTotal,
+            customer_name: customerName,
+            email: shipping.email,
+          },
+        });
+        if (fulfillmentError) {
+          await supabaseAdmin.from("notifications").insert({
+            type: "fulfillment_error",
+            title: `Fulfillment failed for ${customerName}'s order`,
+            message: fulfillmentError,
+            metadata: { order_id: dbOrder?.id ?? null, provider: group.provider, email: shipping.email },
+          });
+        }
+      } catch (notifyErr) {
+        console.error("[api/paypal/capture-order] Failed to create notification", notifyErr);
+      }
     }
 
     return NextResponse.json({
       success: true,
-      orderId: dbOrder?.id ?? null,
-      printfulOrderId,
-      printfulStatus,
-      printfulError,
+      orders: results,
     });
   } catch (err) {
     console.error("[api/paypal/capture-order]", err);

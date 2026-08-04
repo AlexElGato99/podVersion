@@ -12,7 +12,7 @@ type Section = (typeof SECTIONS)[number];
 const SECRET_FIELDS: Record<Section, string[]> = {
   payments: ["paypal_client_secret"],
   printful: ["printful_api_key", "printful_webhook_secret"],
-  printify: ["printify_api_key"],
+  printify: ["printify_api_key", "printify_webhook_secret"],
   general: [],
   email: ["email_api_key"],
   analytics: ["meta_conversions_token"],

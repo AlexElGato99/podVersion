@@ -26,6 +26,8 @@ import type { PrintfulProductDetail } from "@/lib/printful";
 interface ProductClientProps {
   product: PrintfulProductDetail;
   productId: string;
+  /** Printify shop id that owns this product — only set when productId is a "printify_" id. */
+  printifyShopId?: string;
 }
 
 const LIGHT_COLORS = new Set([
@@ -45,7 +47,8 @@ function isLightColor(hex: string, name: string): boolean {
   return (r * 299 + g * 587 + b * 114) / 1000 > 160;
 }
 
-export default function ProductClient({ product, productId }: ProductClientProps) {
+export default function ProductClient({ product, productId, printifyShopId }: ProductClientProps) {
+  const isPrintify = productId.startsWith("printify_");
   const { sync_product, sync_variants, all_images } = product;
   const { addItem } = useCart();
 
@@ -299,6 +302,9 @@ export default function ProductClient({ product, productId }: ProductClientProps
     addItem({
       variantId: selectedVariant.id,
       productId: selectedVariant.sync_product_id,
+      source: isPrintify ? "printify" : "printful",
+      printifyProductId: isPrintify ? productId.replace("printify_", "") : undefined,
+      printifyShopId: isPrintify ? printifyShopId : undefined,
       name: `${displayName} — ${selectedVariant.name}`,
       price: parseFloat(selectedVariant.retail_price),
       currency: selectedVariant.currency,

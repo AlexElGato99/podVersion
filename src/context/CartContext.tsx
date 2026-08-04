@@ -11,6 +11,12 @@ import {
 export interface CartItem {
   variantId: number;
   productId: number;
+  /** Which POD provider this item is fulfilled by — determines the order-placement path at checkout. */
+  source: "printful" | "printify";
+  /** Raw (unprefixed) Printify product id — only set when source is "printify". */
+  printifyProductId?: string;
+  /** Printify shop id that owns this product — only set when source is "printify". */
+  printifyShopId?: string;
   name: string;
   price: number;
   currency: string;

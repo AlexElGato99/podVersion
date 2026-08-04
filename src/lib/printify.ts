@@ -9,24 +9,55 @@ import { getSettingsSection } from "./settings";
 
 const BASE_URL = "https://api.printify.com/v1";
 
-async function printifyFetch(path: string, options: RequestInit = {}) {
+async function printifyFetch(path: string, options: RequestInit = {}, retriesLeft = 2) {
   const { printify_api_key } = await getSettingsSection("printify");
   if (!printify_api_key) throw new Error("Printify API key is not configured.");
 
   const isGet = !options.method || options.method.toUpperCase() === "GET";
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${printify_api_key}`,
-      // Don't send Content-Type on GET requests — some Printify endpoints return 400 if you do
-      ...(isGet ? {} : { "Content-Type": "application/json" }),
-      ...options.headers,
-    },
-    // Printify product responses can exceed 2MB which exceeds Next.js's fetch cache limit.
-    // Use no-store so every request fetches fresh data reliably.
-    cache: "no-store",
-  });
+  // Printify occasionally hangs on individual requests — without a timeout,
+  // one stuck request stalls the whole product listing. 15s is generous for
+  // a JSON API call but still bounded.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${printify_api_key}`,
+        // Don't send Content-Type on GET requests — some Printify endpoints return 400 if you do
+        ...(isGet ? {} : { "Content-Type": "application/json" }),
+        ...options.headers,
+      },
+      // Printify product responses can exceed 2MB which exceeds Next.js's fetch cache limit.
+      // Use no-store so every request fetches fresh data reliably.
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (err) {
+    // Network-level failure (DNS, connection reset, timeout) — fetch()
+    // throws a generic "fetch failed" TypeError whose real cause is nested
+    // in `.cause`, so surface that instead of letting it get lost upstream.
+    const cause = err instanceof Error && "cause" in err ? err.cause : undefined;
+    if (retriesLeft > 0) {
+      await new Promise((r) => setTimeout(r, 1000));
+      return printifyFetch(path, options, retriesLeft - 1);
+    }
+    throw new Error(
+      `Printify request failed on ${path}: ${err instanceof Error ? err.message : String(err)}` +
+        (cause ? ` (cause: ${cause instanceof Error ? cause.message : String(cause)})` : "")
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (res.status === 429 && retriesLeft > 0) {
+    const retryAfter = Math.min(parseInt(res.headers.get("Retry-After") ?? "2", 10), 5);
+    await new Promise((r) => setTimeout(r, retryAfter * 1000));
+    return printifyFetch(path, options, retriesLeft - 1);
+  }
 
   if (!res.ok) {
     const body = await res.text();
@@ -113,6 +144,12 @@ export interface PrintifyProduct {
   best_image: string;
   /** Best-effort type name resolved from the blueprint title */
   catalog_type_name: string | null;
+  /**
+   * Which Printify shop this product belongs to — set at fetch time (from
+   * the shop being queried), since the account can have multiple shops.
+   * Required to place an order for this product against the right shop.
+   */
+  shop_id: string;
 }
 
 function addPrintifyImage(
@@ -162,7 +199,7 @@ export async function getPrintifyProducts(): Promise<PrintifyProduct[]> {
       const shopProducts: PrintifyProduct[] = [];
       for (let page = 1; page <= 3; page++) {
         const data = await printifyFetch(`/shops/${shopId}/products.json?page=${page}&limit=50`);
-        const items: PrintifyProduct[] = data?.data ?? [];
+        const items: PrintifyProduct[] = (data?.data ?? []).map((p: PrintifyProduct) => ({ ...p, shop_id: shopId }));
         shopProducts.push(...items);
         if (items.length < 50) break;
       }
@@ -190,7 +227,7 @@ export async function getPrintifyProducts(): Promise<PrintifyProduct[]> {
 
 export async function getPrintifyProduct(shopId: string, productId: string): Promise<PrintifyProduct> {
   const data = await printifyFetch(`/shops/${shopId}/products/${productId}.json`);
-  return data as PrintifyProduct;
+  return { ...(data as PrintifyProduct), shop_id: shopId };
 }
 
 export async function getPrintifyShopId(): Promise<string> {
@@ -234,6 +271,7 @@ export function toPrintifyCommonProduct(p: PrintifyProduct) {
     colors,
     _source: "printify" as const,
     _raw: p,
+    shop_id: p.shop_id,
   };
 }
 
@@ -318,4 +356,73 @@ export function printifyToProductDetail(p: PrintifyProduct): import("./printful"
     sync_variants,
     all_images: allImages,
   };
+}
+
+// ─── Order creation ─────────────────────────────────────────────────────
+
+export interface PrintifyAddressTo {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  country: string;
+  region?: string;
+  address1: string;
+  address2?: string;
+  city: string;
+  zip: string;
+}
+
+export interface PrintifyOrderLineItem {
+  product_id: string;
+  variant_id: number;
+  quantity: number;
+}
+
+/**
+ * Create a confirmed order in Printify for fulfillment, and immediately push
+ * it into production. Call this only after payment has already been
+ * captured (e.g. via PayPal) — this places a real production order that
+ * Printify will charge to the shop's own billing.
+ *
+ * Printify's order-creation endpoint alone does not guarantee the order is
+ * sent to production (that depends on the shop's own "auto send to
+ * production" setting) — the explicit send_to_production call after
+ * creation makes that happen regardless of shop configuration, mirroring
+ * Printful's `confirm: true` behavior on order creation.
+ */
+export async function createPrintifyOrder(params: {
+  shopId: string;
+  lineItems: PrintifyOrderLineItem[];
+  addressTo: PrintifyAddressTo;
+  externalId: string;
+}): Promise<{ id: string; status: string }> {
+  const created = await printifyFetch(`/shops/${params.shopId}/orders.json`, {
+    method: "POST",
+    body: JSON.stringify({
+      external_id: params.externalId,
+      line_items: params.lineItems,
+      address_to: params.addressTo,
+      shipping_method: 1,
+      send_shipping_notification: true,
+    }),
+  });
+
+  const orderId: string = created?.id;
+  let status = "pending";
+
+  try {
+    const sent = await printifyFetch(`/shops/${params.shopId}/orders/${orderId}/send_to_production.json`, {
+      method: "POST",
+    });
+    status = sent?.status ?? "in-production";
+  } catch (err) {
+    // Order exists in Printify even if send-to-production failed — surface
+    // this to the caller via status so it can be logged/retried, without
+    // losing the already-created order id.
+    console.error(`[printify] send_to_production failed for order ${orderId}:`, err);
+    status = "created-not-sent";
+  }
+
+  return { id: orderId, status };
 }

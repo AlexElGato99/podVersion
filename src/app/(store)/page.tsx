@@ -30,18 +30,6 @@ const supabaseAdmin = createServiceClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-interface FloatingCard {
-  id: string;
-  emoji: string;
-  image_url: string;
-  label: string;
-  sublabel: string;
-  bg: string;
-  bg_disabled?: boolean;
-  text_color: string;
-  position: "top-left" | "bottom-left" | "top-right" | "bottom-right";
-}
-
 interface HeroSettings {
   headline: string;
   subtitle: string;
@@ -49,10 +37,6 @@ interface HeroSettings {
   cta_primary_link: string;
   cta_secondary_text: string;
   cta_secondary_link: string;
-  bg_from: string;
-  bg_to: string;
-  main_image_url: string;
-  floating_cards: FloatingCard[];
 }
 
 interface StoreCategory {
@@ -103,21 +87,12 @@ async function getCategorySettings(): Promise<CategorySettings> {
 }
 
 const HERO_DEFAULTS: HeroSettings = {
-  headline: "The leader in quality custom T-Shirts",
-  subtitle: "Turn your ideas into premium products that leave a lasting impression",
-  cta_primary_text: "Shop Now",
+  headline: "Premium Quality Shirts, Made to Last",
+  subtitle: "Soft, durable fabric and expert craftsmanship in every shirt we ship — no gimmicks, just great quality you can feel.",
+  cta_primary_text: "Shop Shirts",
   cta_primary_link: "/shop",
   cta_secondary_text: "View Collections",
   cta_secondary_link: "/collections",
-  bg_from: "#fdf1e7",
-  bg_to: "#fce8d5",
-  main_image_url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&auto=format&fit=crop&q=80",
-  floating_cards: [
-    { id: "1", emoji: "🐼", image_url: "", label: "", sublabel: "", bg: "#0d3d5f", text_color: "#ffffff", position: "top-left" },
-    { id: "2", emoji: "👨‍🚀", image_url: "", label: "", sublabel: "", bg: "#d4eaff", text_color: "#374151", position: "bottom-left" },
-    { id: "3", emoji: "", image_url: "", label: "Company Name", sublabel: "Slogan Here", bg: "#ffffff", text_color: "#374151", position: "top-right" },
-    { id: "4", emoji: "🚛", image_url: "", label: "", sublabel: "", bg: "#ffffff", text_color: "#374151", position: "bottom-right" },
-  ],
 };
 
 async function getHeroSettings(): Promise<HeroSettings> {
@@ -128,42 +103,11 @@ async function getHeroSettings(): Promise<HeroSettings> {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id: _id, updated_at: _u, ...rest } = data;
       // Merge with defaults so any missing DB columns are filled
-      const merged: HeroSettings = { ...HERO_DEFAULTS, ...rest };
-      // Normalize legacy positions
-      const TARGET: FloatingCard["position"][] = ["top-left", "bottom-left", "top-right", "bottom-right"];
-      const cards: FloatingCard[] = merged.floating_cards || HERO_DEFAULTS.floating_cards;
-      const taken = new Set(cards.map((c) => c.position));
-      const missing = TARGET.filter((p) => !taken.has(p));
-      let missingIdx = 0;
-      merged.floating_cards = cards.map((c) => {
-        const valid = TARGET.includes(c.position as FloatingCard["position"]);
-        if (!valid || (taken.has(c.position) && cards.filter((x) => x.position === c.position).length > 1)) {
-          const newPos = missing[missingIdx++] ?? TARGET[0];
-          return { ...c, position: newPos };
-        }
-        return c;
-      });
-      return merged;
+      return { ...HERO_DEFAULTS, ...rest };
     }
   } catch { /* fall through to defaults */ }
   return HERO_DEFAULTS;
 }
-
-/* Animation delay map per card position */
-const CARD_ANIM: Record<FloatingCard["position"], { anim: string; style: React.CSSProperties }> = {
-  "top-left":     { anim: "hero-float",         style: { animationDelay: "0s",    animationDuration: "4s"   } },
-  "bottom-left":  { anim: "hero-float-reverse",  style: { animationDelay: "1.0s",  animationDuration: "4.8s" } },
-  "top-right":    { anim: "hero-float-reverse",  style: { animationDelay: "0.8s",  animationDuration: "5s"   } },
-  "bottom-right": { anim: "hero-float",          style: { animationDelay: "0.4s",  animationDuration: "4.5s" } },
-};
-
-/* Position styles for each floating card slot — cards sit BEHIND the main image (zIndex: 5) */
-const CARD_POS: Record<FloatingCard["position"], React.CSSProperties> = {
-  "top-left":     { position: "absolute", left: "2%",  top: "20%",   zIndex: 5 },
-  "bottom-left":  { position: "absolute", left: "2%",  bottom: "6%", zIndex: 5 },
-  "top-right":    { position: "absolute", right: "2%", top: "20%",   zIndex: 5 },
-  "bottom-right": { position: "absolute", right: "2%", bottom: "6%", zIndex: 5 },
-};
 
 async function getAllProducts() {
   try {
@@ -341,115 +285,33 @@ export default async function HomePage() {
 
   return (
     <div className="overflow-x-hidden bg-white">
-      {/* ── Hero — Etsy style ── */}
-      <section
-        className="relative min-h-screen pt-[100px] flex flex-col bg-white"
-      >
-        <div className="flex-1 flex flex-col mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex-1 grid gap-8 py-12 lg:grid-cols-2 lg:gap-16 lg:py-0 w-full">
+      {/* ── Hero — simple, text-only, no images/animations ── */}
+      <section className="bg-white pt-[100px]">
+        <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8">
+          <h1 className="text-4xl font-extrabold leading-[1.1] tracking-tight text-zinc-900 sm:text-5xl lg:text-[52px]">
+            {hero.headline}
+          </h1>
 
-            {/* Left: copy */}
-            <div className="flex flex-col gap-6 justify-center">
-              <h1 className="text-4xl font-extrabold leading-[1.1] tracking-tight text-zinc-900 sm:text-5xl lg:text-[52px]">
-                {hero.headline}
-              </h1>
+          <p className="max-w-xl text-base leading-relaxed text-zinc-600 sm:text-lg">
+            {hero.subtitle}
+          </p>
 
-              <p className="max-w-md text-base leading-relaxed text-zinc-600">
-                {hero.subtitle}
-              </p>
-
-              {/* CTA buttons */}
-              <div className="flex flex-wrap items-center gap-3 pt-1">
-                <Link
-                  href={hero.cta_primary_link}
-                  className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-7 py-3.5 text-sm font-semibold text-white transition-all hover:bg-zinc-700 active:scale-95"
-                >
-                  {hero.cta_primary_text}
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                {hero.cta_secondary_text && (
-                  <Link
-                    href={hero.cta_secondary_link || "/collections"}
-                    className="inline-flex items-center gap-2 rounded-full border-2 border-zinc-900 bg-transparent px-7 py-3.5 text-sm font-semibold text-zinc-900 transition-all hover:bg-zinc-900 hover:text-white active:scale-95"
-                  >
-                    {hero.cta_secondary_text}
-                  </Link>
-                )}
-              </div>
-
-              {/* Trust badges */}
-              <div className="flex flex-wrap items-center gap-5 pt-2 border-t border-amber-200/60">
-                <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-                  <Truck className="h-3.5 w-3.5 text-zinc-400" />
-                  Free shipping on orders $50+
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-                  <ShieldCheck className="h-3.5 w-3.5 text-zinc-400" />
-                  Secure checkout
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-                  <RotateCcw className="h-3.5 w-3.5 text-zinc-400" />
-                  30-day returns
-                </div>
-              </div>
-
-              {/* Social-proof */}
-              <div className="inline-flex w-fit items-center gap-2 text-xs font-semibold text-amber-800">
-                <span className="flex text-amber-400">★★★★★</span>
-                Loved by thousands of creators
-              </div>
-            </div>
-
-            {/* Right: product image — anchored to bottom */}
-            <div className="relative flex flex-col items-center justify-end">
-              {/* Floating product cards (admin-controlled) */}
-              {hero.floating_cards.map((card) => {
-                const pos = card.position;
-                const { anim, style: animStyle } = CARD_ANIM[pos] ?? CARD_ANIM["top-left"];
-                const posStyle = CARD_POS[pos] ?? CARD_POS["top-left"];
-                const hasImage = !!card.image_url;
-                const isLabel = !card.emoji && !hasImage && card.label;
-                return (
-                  <div
-                    key={card.id}
-                    className={`${anim} overflow-hidden rounded-2xl shadow-lg`}
-                    style={{
-                      ...posStyle,
-                      background: card.bg_disabled ? "transparent" : card.bg,
-                      boxShadow: card.bg_disabled ? "none" : "0 8px 24px rgba(0,0,0,0.10)",
-                      color: card.text_color,
-                      ...(isLabel ? { width: 148, padding: "12px 16px" } : { width: 116, height: 116 }),
-                      ...animStyle,
-                    }}
-                  >
-                    {hasImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={card.image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    ) : card.emoji ? (
-                      <div className="flex h-full items-center justify-center" style={{ fontSize: 30 }}>
-                        {card.emoji}
-                      </div>
-                    ) : (
-                      <div className="p-1">
-                        {card.label && <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", margin: 0 }}>{card.label}</p>}
-                        {card.sublabel && <p style={{ fontSize: 9, opacity: 0.6, margin: "2px 0 0 0" }}>{card.sublabel}</p>}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              {/* Main image — anchored to bottom, no background */}
-              <div className="relative z-10" style={{ maxWidth: 560 }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={hero.main_image_url}
-                  alt="Featured product"
-                  className="w-full object-contain object-bottom"
-                  style={{ maxHeight: "calc(100vh - 100px)", display: "block" }}
-                />
-              </div>
-            </div>
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <Link
+              href={hero.cta_primary_link}
+              className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-7 py-3.5 text-sm font-semibold text-white hover:bg-zinc-700"
+            >
+              {hero.cta_primary_text}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            {hero.cta_secondary_text && (
+              <Link
+                href={hero.cta_secondary_link || "/collections"}
+                className="inline-flex items-center gap-2 rounded-full border-2 border-zinc-900 bg-transparent px-7 py-3.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-900 hover:text-white"
+              >
+                {hero.cta_secondary_text}
+              </Link>
+            )}
           </div>
         </div>
       </section>

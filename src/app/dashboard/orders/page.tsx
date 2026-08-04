@@ -35,7 +35,9 @@ interface OrderItem {
 interface Order {
   id: string;
   user_id: string | null;
+  provider: string;
   printful_order_id: string | null;
+  printify_order_id: string | null;
   paypal_order_id: string | null;
   status: string;
   payment_status: string | null;
@@ -168,6 +170,7 @@ export default function OrdersPage() {
         o.id.toLowerCase().includes(q) ||
         (o.email ?? "").toLowerCase().includes(q) ||
         (o.printful_order_id ?? "").toLowerCase().includes(q) ||
+        (o.printify_order_id ?? "").toLowerCase().includes(q) ||
         (o.paypal_order_id ?? "").toLowerCase().includes(q) ||
         name.includes(q)
       );
@@ -235,7 +238,7 @@ export default function OrdersPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by customer, email, order or Printful ID…"
+            placeholder="Search by customer, email, order, Printful or Printify ID…"
             style={{ width: "100%", padding: "9px 12px 9px 32px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" }}
           />
         </div>
@@ -333,7 +336,9 @@ export default function OrdersPage() {
                 <div style={{ display: "flex", gap: 8, padding: "10px 12px", borderRadius: 8, background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontSize: 12 }}>
                   <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
                   <div>
-                    <div style={{ fontWeight: 700, marginBottom: 2 }}>Printful fulfillment failed</div>
+                    <div style={{ fontWeight: 700, marginBottom: 2 }}>
+                      {selected.provider === "printify" ? "Printify" : "Printful"} fulfillment failed
+                    </div>
                     {selected.fulfillment_error}
                   </div>
                 </div>
@@ -406,15 +411,20 @@ export default function OrdersPage() {
 
               {/* Fulfillment */}
               <div>
-                <h3 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 8 }}>Fulfillment (Printful)</h3>
+                <h3 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 8 }}>
+                  Fulfillment ({selected.provider === "printify" ? "Printify" : "Printful"})
+                </h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "var(--text-secondary)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <span>Printful order ID</span>
-                    {selected.printful_order_id ? (
-                      <button onClick={() => copy(selected.printful_order_id!, "printful")} style={{ display: "flex", alignItems: "center", gap: 4, fontFamily: "monospace", fontSize: 11, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>
-                        {selected.printful_order_id} <Copy size={11} />
-                      </button>
-                    ) : <span>—</span>}
+                    <span>{selected.provider === "printify" ? "Printify" : "Printful"} order ID</span>
+                    {(() => {
+                      const providerOrderId = selected.provider === "printify" ? selected.printify_order_id : selected.printful_order_id;
+                      return providerOrderId ? (
+                        <button onClick={() => copy(providerOrderId, selected.provider)} style={{ display: "flex", alignItems: "center", gap: 4, fontFamily: "monospace", fontSize: 11, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>
+                          {providerOrderId} <Copy size={11} />
+                        </button>
+                      ) : <span>—</span>;
+                    })()}
                   </div>
                   {selected.tracking_number && (
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -431,18 +441,18 @@ export default function OrdersPage() {
                   )}
                 </div>
                 <a
-                  href="https://www.printful.com/dashboard"
+                  href={selected.provider === "printify" ? "https://printify.com/app/orders" : "https://www.printful.com/dashboard"}
                   target="_blank"
                   rel="noreferrer"
                   style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 10, fontSize: 12, color: "var(--purple)", fontWeight: 600, textDecoration: "none" }}
                 >
-                  Open Printful dashboard <ExternalLink size={11} />
+                  Open {selected.provider === "printify" ? "Printify" : "Printful"} dashboard <ExternalLink size={11} />
                 </a>
               </div>
 
               {copied && (
                 <div style={{ position: "fixed", bottom: 20, right: 20, background: "var(--text-primary)", color: "var(--bg-primary)", padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600 }}>
-                  Copied {copied === "paypal" ? "PayPal" : "Printful"} ID
+                  Copied {copied === "paypal" ? "PayPal" : copied === "printify" ? "Printify" : "Printful"} ID
                 </div>
               )}
             </div>

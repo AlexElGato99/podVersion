@@ -79,6 +79,7 @@ const SECTION_INFO: Record<IntegrationSection, { title: string; description: str
     fields: [
       { key: "printify_api_key", label: "Printify API Key", secret: true, helper: "Personal access token from Printify → My Profile → Connections → API access token." },
       { key: "printify_shop_id", label: "Printify Shop ID(s)", helper: "Leave blank to use ALL shops automatically. To use specific shops, enter one ID or comma-separated IDs (e.g. 12345, 67890)." },
+      { key: "printify_webhook_secret", label: "Webhook Secret", secret: true, helper: "Auto-filled by the \"Register webhooks\" button below — verifies incoming Printify shipment/tracking events." },
     ],
   },
   email: {
@@ -197,6 +198,33 @@ export default function SettingsPage() {
         ...prev,
         [section]: { kind: "error", message: err instanceof Error ? err.message : "Failed to save settings." },
       }));
+    }
+  };
+
+  const [webhookStatus, setWebhookStatus] = useState<Status>({ kind: "idle" });
+
+  const registerPrintifyWebhooks = async () => {
+    setWebhookStatus({ kind: "loading" });
+    try {
+      const res = await fetch("/api/admin/printify-webhooks", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok && !json.shops) throw new Error(json.error ?? "Failed to register webhooks.");
+
+      const failed = (json.shops ?? []).filter((s: { error?: string }) => s.error);
+      if (failed.length > 0) {
+        setWebhookStatus({ kind: "error", message: `Registered with errors on ${failed.length} shop(s): ${failed[0].error}` });
+      } else {
+        setWebhookStatus({ kind: "success", message: `Webhooks registered for ${json.shops?.length ?? 0} shop(s) → ${json.webhookUrl}` });
+      }
+
+      // Re-fetch so the masked Webhook Secret field reflects what was just stored.
+      const refreshRes = await fetch("/api/app-settings");
+      if (refreshRes.ok) {
+        const refreshJson = await refreshRes.json();
+        applySettings(refreshJson.settings ?? {});
+      }
+    } catch (err) {
+      setWebhookStatus({ kind: "error", message: err instanceof Error ? err.message : "Failed to register webhooks." });
     }
   };
 
@@ -393,6 +421,8 @@ export default function SettingsPage() {
           }
           onChange={(key, value) => setField(activeTab, key, value)}
           onSave={() => saveSection(activeTab)}
+          webhookStatus={webhookStatus}
+          onRegisterWebhooks={registerPrintifyWebhooks}
         />
       )}
     </div>
@@ -412,6 +442,8 @@ function IntegrationTab({
   onToggleReveal,
   onChange,
   onSave,
+  webhookStatus,
+  onRegisterWebhooks,
 }: {
   section: IntegrationSection;
   fields: FieldConfig[];
@@ -425,6 +457,8 @@ function IntegrationTab({
   onToggleReveal: (key: string) => void;
   onChange: (key: string, value: string) => void;
   onSave: () => void;
+  webhookStatus?: Status;
+  onRegisterWebhooks?: () => void;
 }) {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string; shops?: Array<{ id: number; title: string; sales_channel: string }> } | null>(null);
@@ -514,17 +548,40 @@ function IntegrationTab({
         </div>
       )}
 
-      <div className="flex items-center justify-end pt-1">
+      {webhookStatus && webhookStatus.kind === "error" && (
+        <div className="text-xs font-medium px-3 py-2 rounded-lg bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+          {webhookStatus.message}
+        </div>
+      )}
+      {webhookStatus && webhookStatus.kind === "success" && (
+        <div className="text-xs font-medium px-3 py-2 rounded-lg bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+          {webhookStatus.message}
+        </div>
+      )}
+
+      <div className="flex items-center justify-end gap-2 pt-1">
         {section === "printify" && (
-          <button
-            type="button"
-            onClick={testPrintify}
-            disabled={testing}
-            className="mr-auto inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
-          >
-            {testing ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
-            {testing ? "Testing…" : "Test connection"}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={testPrintify}
+              disabled={testing}
+              className="mr-auto inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
+            >
+              {testing ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
+              {testing ? "Testing…" : "Test connection"}
+            </button>
+            <button
+              type="button"
+              onClick={onRegisterWebhooks}
+              disabled={webhookStatus?.kind === "loading"}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
+              title="Registers Printify webhooks so order shipment/tracking updates flow back into this dashboard."
+            >
+              {webhookStatus?.kind === "loading" ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
+              {webhookStatus?.kind === "loading" ? "Registering…" : "Register webhooks"}
+            </button>
+          </>
         )}
         <button
           type="button"

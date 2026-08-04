@@ -54,6 +54,8 @@ export type CommonProduct = {
   colors?: string[];
   /** Featured color override from dashboard */
   featured_color?: string | null;
+  /** Printify shop id that owns this product (Printify only) */
+  shop_id?: string;
 };
 
 /** Fetch all products respecting the active provider setting, with admin overrides applied. */
@@ -108,9 +110,31 @@ export type StoreProductDetail =
 /** Fetch a single product by its store ID (numeric = Printful, "printify_xxx" = Printify). */
 export async function getStoreProduct(id: string): Promise<StoreProductDetail> {
   if (id.startsWith("printify_")) {
-    const shopId = await getPrintifyShopId();
-    const data = await getPrintifyProduct(shopId, id.replace("printify_", ""));
-    return { source: "printify", data };
+    // getPrintifyProduct sets shop_id from whichever shop we query — try the
+    // configured/default shop first, but fall back to searching every
+    // configured shop so this still resolves correctly on multi-shop setups
+    // where the product doesn't live in the first shop.
+    const rawId = id.replace("printify_", "");
+    const defaultShopId = await getPrintifyShopId();
+    try {
+      const data = await getPrintifyProduct(defaultShopId, rawId);
+      return { source: "printify", data };
+    } catch (err) {
+      const { printify_shop_id } = await getSettingsSection("printify");
+      const otherShopIds = (printify_shop_id ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s && s !== defaultShopId);
+      for (const shopId of otherShopIds) {
+        try {
+          const data = await getPrintifyProduct(shopId, rawId);
+          return { source: "printify", data };
+        } catch {
+          // try the next shop
+        }
+      }
+      throw err;
+    }
   }
   const data = await getPrintfulProduct(id);
   return { source: "printful", data };
