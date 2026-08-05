@@ -358,7 +358,7 @@ export default async function HomePage() {
   return (
     <div className="overflow-x-hidden bg-white">
       {/* ── Hero — simple, text-only, no images/animations ── */}
-      <section className="bg-white pt-[100px] lg:flex lg:min-h-screen lg:items-center">
+      <section className="bg-white pt-20 sm:pt-32 lg:flex lg:min-h-screen lg:items-center">
         <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6 px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8 lg:py-0">
           <h1 className="text-4xl font-extrabold leading-[1.1] tracking-tight text-zinc-900 sm:text-5xl lg:text-[52px]">
             {hero.headline}

@@ -1,58 +1,77 @@
 import Link from "next/link";
-import {
-  Sparkles,
-  Heart,
-  Globe,
-  Zap,
-  Users,
-  Package,
-  Star,
-  ArrowRight,
-} from "lucide-react";
+import { Sparkles, Heart, Globe, Zap, Users, ArrowRight } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata = {
-  title: "About Veliova — Artist-Designed Custom Apparel & Gifts, Shipped Across the USA",
-  description: "Veliova is an independent artist-run print-on-demand store based in the USA. We create unique graphic tees, hoodies, mugs and gifts — every product is printed on demand and fulfilled by Printful.",
-  keywords: ["about veliova", "independent artist store", "custom apparel USA", "graphic tee artist", "print on demand brand", "artist designed clothing"],
+  title: "About Veliova — An Independent Brand Built On Our Own Terms",
+  description: "Veliova started on Etsy and Merch by Amazon — now it's our own independent store, built so we can control the whole experience and do right by every customer.",
+  keywords: ["about veliova", "independent artist store", "custom apparel USA", "print on demand brand", "artist designed clothing"],
   alternates: { canonical: "https://veliova.com/about" },
   openGraph: {
-    title: "About Veliova — Artist-Designed Custom Apparel & Gifts",
-    description: "We’re an independent artist-run POD store. Unique graphic tees, hoodies & gifts — printed on demand, shipped across the USA by Printful.",
+    title: "About Veliova — An Independent Brand Built On Our Own Terms",
+    description: "Veliova started on Etsy and Merch by Amazon — now it's our own independent store, built for a better, more direct customer experience.",
     url: "https://veliova.com/about",
     type: "website",
   },
 };
 
-const values = [
-  {
-    icon: Heart,
-    title: "Made with Passion",
-    description:
-      "Every design is carefully curated and crafted with attention to detail.",
-  },
-  {
-    icon: Globe,
-    title: "Worldwide Reach",
-    description:
-      "We ship to 180+ countries, bringing unique designs to every corner of the globe.",
-  },
-  {
-    icon: Zap,
-    title: "Fast Fulfillment",
-    description:
-      "Powered by Printful's world-class fulfillment network for fast, reliable delivery.",
-  },
-  {
-    icon: Users,
-    title: "Community First",
-    description:
-      "We're building more than a store — a community of creators and lovers of design.",
-  },
-];
+const VALUE_ICONS = [Heart, Globe, Zap, Users];
 
-export default function AboutPage() {
+interface AboutValue {
+  title: string;
+  description: string;
+}
+
+interface AboutSettings {
+  badge_text: string;
+  headline: string;
+  subheadline: string;
+  story_paragraphs: string[];
+  values: AboutValue[];
+  cta_title: string;
+  cta_subtitle: string;
+}
+
+const DEFAULTS: AboutSettings = {
+  badge_text: "Our Story",
+  headline: "From Etsy & Amazon to Our Own Home",
+  subheadline:
+    "Veliova started as another shop among many — selling on Etsy and Merch by Amazon. Now it's something we built and control ourselves: a small, independent brand focused on doing one thing really well.",
+  story_paragraphs: [
+    "Before Veliova, we were already selling print-on-demand designs on Etsy and Merch by Amazon — two great platforms that taught us a lot about what customers actually want. But selling on a marketplace means sharing the stage: someone else controls the search results, the checkout experience, the branding, even how customers reach us when something goes wrong.",
+    "We wanted more than that. So we started Veliova as our own small brand — a place where we control every part of the experience, from the first design sketch to the moment your order arrives at your door. No algorithm deciding whether you get found. No generic marketplace checkout. Just a store we've built and stand behind ourselves.",
+    "We're still a small team, and we like it that way. Every design is picked with care, every order matters, and every customer gets our full attention — not because a platform requires it, but because it's how we actually want to run this.",
+  ],
+  values: [
+    { title: "Made with Care", description: "Every design is chosen and refined by us, not mass-generated — because we're building something we're proud to put our name on." },
+    { title: "Our Own Platform", description: "Veliova is fully ours — not a storefront borrowed from a marketplace. That means a more direct, better-controlled experience for you." },
+    { title: "Made to Order", description: "Every item is printed after you order it, through trusted print-on-demand manufacturing partners — so nothing sits in a warehouse before it's yours." },
+    { title: "A Small Team, Directly Reachable", description: "When you reach out to us, you're talking to the people who actually run Veliova — not a marketplace support queue." },
+  ],
+  cta_title: "Ready to find your next favorite piece?",
+  cta_subtitle: "Browse our full catalog and discover products you'll love.",
+};
+
+async function getAboutSettings(): Promise<AboutSettings> {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("about_settings").select("*").eq("id", 1).single();
+    if (data) {
+      const { id: _id, updated_at: _u, ...rest } = data;
+      const merged = { ...DEFAULTS, ...rest };
+      if (!merged.story_paragraphs?.length) merged.story_paragraphs = DEFAULTS.story_paragraphs;
+      if (!merged.values?.length) merged.values = DEFAULTS.values;
+      return merged;
+    }
+  } catch { /* fall through */ }
+  return DEFAULTS;
+}
+
+export default async function AboutPage() {
+  const about = await getAboutSettings();
+
   return (
-    <div className="pt-24 pb-16">
+    <div className="pt-20 sm:pt-32 pb-16">
       {/* Hero */}
       <section className="relative py-24 overflow-hidden">
         <div className="absolute inset-0 -z-10">
@@ -61,37 +80,25 @@ export default function AboutPage() {
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-brand-800/60 bg-brand-950/40 px-4 py-1.5 text-sm text-brand-500 mb-6">
             <Sparkles className="h-4 w-4" />
-            Our Story
+            {about.badge_text}
           </div>
           <h1 className="section-title mb-6">
-            Bringing Creativity to <span className="gradient-text">Life</span>
+            {about.headline}
           </h1>
           <p className="text-lg text-zinc-500 leading-relaxed">
-            Veliova was founded with a simple belief: everyone deserves to wear
-            something that tells their story. We partner with Printful to deliver
-            premium quality print-on-demand products that combine stunning
-            designs with world-class manufacturing.
+            {about.subheadline}
           </p>
         </div>
       </section>
 
-      {/* Stats */}
+      {/* Story */}
       <section className="py-16 border-y border-zinc-200 bg-white/30">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
-            {[
-              { value: "50K+", label: "Happy Customers", icon: Users },
-              { value: "200+", label: "Unique Designs", icon: Star },
-              { value: "180+", label: "Countries Shipped", icon: Globe },
-              { value: "1M+", label: "Products Delivered", icon: Package },
-            ].map(({ value, label, icon: Icon }) => (
-              <div key={label} className="text-center">
-                <Icon className="h-8 w-8 text-brand-600 mx-auto mb-3" />
-                <p className="text-3xl font-bold gradient-text">{value}</p>
-                <p className="text-sm text-zinc-500 mt-1">{label}</p>
-              </div>
-            ))}
-          </div>
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 space-y-5">
+          {about.story_paragraphs.map((p, i) => (
+            <p key={i} className="text-base text-zinc-600 leading-relaxed">
+              {p}
+            </p>
+          ))}
         </div>
       </section>
 
@@ -102,17 +109,20 @@ export default function AboutPage() {
             <h2 className="section-title">Our Values</h2>
           </div>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {values.map(({ icon: Icon, title, description }) => (
-              <div key={title} className="card p-6 text-center">
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-950/60 border border-brand-800/40">
-                  <Icon className="h-7 w-7 text-brand-600" />
+            {about.values.map((value, i) => {
+              const Icon = VALUE_ICONS[i % VALUE_ICONS.length];
+              return (
+                <div key={value.title} className="card p-6 text-center">
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-950/60 border border-brand-800/40">
+                    <Icon className="h-7 w-7 text-brand-600" />
+                  </div>
+                  <h3 className="font-bold text-zinc-900 mb-2">{value.title}</h3>
+                  <p className="text-sm text-zinc-500 leading-relaxed">
+                    {value.description}
+                  </p>
                 </div>
-                <h3 className="font-bold text-zinc-900 mb-2">{title}</h3>
-                <p className="text-sm text-zinc-500 leading-relaxed">
-                  {description}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -121,10 +131,10 @@ export default function AboutPage() {
       <section className="py-16">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-2xl font-bold text-zinc-900 mb-4">
-            Ready to find your next favorite piece?
+            {about.cta_title}
           </h2>
           <p className="text-zinc-500 mb-8">
-            Browse our full catalog and discover products you&apos;ll love.
+            {about.cta_subtitle}
           </p>
           <Link href="/shop" className="btn-primary text-base px-8 py-3.5">
             Shop Now
@@ -137,21 +147,20 @@ export default function AboutPage() {
       <section className="py-16 bg-zinc-50 border-t border-zinc-200">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <div className="prose prose-zinc max-w-none">
-            <h2 className="text-2xl font-bold text-zinc-900 mb-6">About Veliova — Artist-Designed Custom Apparel for the USA</h2>
+            <h2 className="text-2xl font-bold text-zinc-900 mb-6">About Veliova — An Independent Brand, Built On Our Own Terms</h2>
             <div className="grid gap-8 sm:grid-cols-2">
               <div>
                 <h3 className="text-lg font-semibold text-zinc-800 mb-3">What We Make</h3>
                 <p className="text-sm text-zinc-600 leading-relaxed">
-                  Veliova is an independent artist-run store specializing in unique graphic t-shirts, hoodies,
-                  sweatshirts, mugs, posters, stickers, and accessories. Every single product starts as original
-                  artwork — designed with a specific mood, message, or aesthetic in mind — then printed on
-                  premium blanks using Direct-to-Garment (DTG) technology or embroidery.
+                  Veliova specializes in unique graphic t-shirts, hoodies, sweatshirts, mugs, posters, stickers,
+                  and accessories. Every product starts as original artwork — designed with a specific mood,
+                  message, or aesthetic in mind — then printed on premium blanks using Direct-to-Garment (DTG)
+                  or Direct-to-Film (DTF) printing, or embroidery.
                 </p>
                 <p className="text-sm text-zinc-600 leading-relaxed mt-3">
                   We don&apos;t mass-produce. Each item is printed on demand when you order it, meaning no
-                  waste, no overstock, and every piece feels special. Whether you&apos;re shopping for yourself
-                  or looking for a unique gift for someone you care about, you&apos;ll find something here that
-                  you can&apos;t find anywhere else.
+                  waste, no overstock, and every piece feels special. We still sell on Etsy and Merch by Amazon
+                  too — but Veliova is where we control the whole experience ourselves.
                 </p>
               </div>
               <div>
@@ -170,10 +179,10 @@ export default function AboutPage() {
               <div>
                 <h3 className="text-lg font-semibold text-zinc-800 mb-3">How It Works</h3>
                 <p className="text-sm text-zinc-600 leading-relaxed">
-                  Veliova is powered by <strong>Printful</strong>, one of the world&apos;s leading print-on-demand
-                  fulfillment companies. When you place an order, Printful prints and ships your item directly
-                  to your door — typically within 7–10 business days for US orders. This partnership lets us
-                  focus on what we do best: creating great art and curating products you&apos;ll love.
+                  When you place an order, our print-on-demand manufacturing partners produce and ship your
+                  item directly to your door — typically within a week or two for US orders. Working this way
+                  lets our small team focus on what we do best: designing art worth wearing and standing
+                  behind every order ourselves, rather than handing that off to a marketplace.
                 </p>
               </div>
               <div>
@@ -182,24 +191,9 @@ export default function AboutPage() {
                   We only offer products that meet our quality bar. T-shirts are soft, true-to-size, and
                   hold their print wash after wash. Mugs are dishwasher-safe. Posters are printed on
                   heavyweight paper with archival inks. If you&apos;re not satisfied, our 30-day return policy
-                  means you can shop with zero risk.
+                  means you can shop with confidence.
                 </p>
               </div>
-            </div>
-
-            <div className="mt-8 p-5 bg-white rounded-2xl border border-zinc-200">
-              <h3 className="text-base font-semibold text-zinc-800 mb-2">Popular searches that bring people to Veliova</h3>
-              <p className="text-sm text-zinc-500 leading-relaxed">
-                Customers find us searching for:{" "}
-                <span className="text-zinc-700">custom graphic tees USA</span>,{" "}
-                <span className="text-zinc-700">unique gifts for art lovers</span>,{" "}
-                <span className="text-zinc-700">artist designed hoodies</span>,{" "}
-                <span className="text-zinc-700">print on demand apparel</span>,{" "}
-                <span className="text-zinc-700">funny t-shirts for her</span>,{" "}
-                <span className="text-zinc-700">retro graphic tee shop</span>,{" "}
-                <span className="text-zinc-700">custom mugs and posters</span>, and{" "}
-                <span className="text-zinc-700">independent artist clothing brand</span>.
-              </p>
             </div>
           </div>
         </div>

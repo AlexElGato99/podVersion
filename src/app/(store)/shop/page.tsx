@@ -62,7 +62,7 @@ async function ShopWrapper() {
 
 export default function ShopPage() {
   return (
-    <div className="pt-24 pb-16">
+    <div className="pt-20 sm:pt-32 pb-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="py-10">
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900">All Products</h1>

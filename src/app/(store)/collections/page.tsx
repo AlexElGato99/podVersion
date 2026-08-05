@@ -136,7 +136,7 @@ export default async function CollectionsPage() {
   const rest = collections.slice(2);
 
   return (
-    <div className="pt-24 pb-20 bg-white">
+    <div className="pt-20 sm:pt-32 pb-20 bg-white">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
         {/* Header */}

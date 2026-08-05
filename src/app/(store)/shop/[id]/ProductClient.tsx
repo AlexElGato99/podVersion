@@ -320,7 +320,7 @@ export default function ProductClient({ product, productId, printifyShopId }: Pr
   const currency = selectedVariant?.currency ?? "USD";
 
   return (
-    <div className="pt-24 pb-20">
+    <div className="pt-20 sm:pt-32 pb-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <nav className="flex items-center gap-1.5 text-sm text-zinc-400 mb-8">
           <Link href="/" className="hover:text-zinc-700 transition-colors">Home</Link>

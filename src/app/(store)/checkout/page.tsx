@@ -156,7 +156,7 @@ export default function CheckoutPage() {
 
   if (completed) {
     return (
-      <div className="pt-24 pb-16 min-h-screen flex items-center justify-center">
+      <div className="pt-20 sm:pt-32 pb-16 min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md">
           <div className="mx-auto h-20 w-20 rounded-full bg-accent-500/10 border border-accent-500/30 flex items-center justify-center mb-6">
             <CheckCircle2 className="h-10 w-10 text-accent-600" />
@@ -178,7 +178,7 @@ export default function CheckoutPage() {
 
   if (items.length === 0) {
     return (
-      <div className="pt-24 pb-16 min-h-screen flex items-center justify-center">
+      <div className="pt-20 sm:pt-32 pb-16 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-zinc-500 mb-6">Your cart is empty.</p>
           <Link href="/shop" className="btn-primary">
@@ -190,7 +190,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="pt-24 pb-16">
+    <div className="pt-20 sm:pt-32 pb-16">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="mb-10">
           <h1 className="text-3xl font-bold text-zinc-900 mb-6">Checkout</h1>

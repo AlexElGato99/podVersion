@@ -135,3 +135,71 @@
   animation: hero-blob-breathe 6s ease-in-out infinite;
 }
 
+/* Rendered CMS page content (src/app/(store)/[slug]/page.tsx) — the HTML
+   comes from the Tiptap editor in Dashboard → Pages, styled here since no
+   typography plugin is installed. Also reused for the live preview inside
+   the editor itself. */
+.page-content {
+  color: var(--color-zinc-600, #52525b);
+  font-size: 1rem;
+  line-height: 1.75;
+}
+.page-content h1, .page-content h2, .page-content h3, .page-content h4 {
+  color: var(--color-zinc-900, #18181b);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-top: 1.75em;
+  margin-bottom: 0.6em;
+}
+.page-content h1 { font-size: 1.75rem; }
+.page-content h2 { font-size: 1.4rem; }
+.page-content h3 { font-size: 1.15rem; }
+.page-content h4 { font-size: 1rem; }
+.page-content p { margin: 1em 0; }
+.page-content ul, .page-content ol {
+  margin: 1em 0;
+  padding-left: 1.5em;
+}
+.page-content ul { list-style: disc; }
+.page-content ol { list-style: decimal; }
+.page-content li { margin: 0.35em 0; }
+.page-content a {
+  color: var(--color-brand-600, #ea580c);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.page-content a:hover { color: var(--color-brand-700, #c2410c); }
+.page-content blockquote {
+  border-left: 3px solid var(--color-brand-300, #fdba74);
+  padding-left: 1em;
+  margin: 1.25em 0;
+  color: var(--color-zinc-500, #71717a);
+  font-style: italic;
+}
+.page-content hr {
+  border: none;
+  border-top: 1px solid var(--color-zinc-200, #e4e4e7);
+  margin: 2em 0;
+}
+.page-content img {
+  border-radius: 0.75rem;
+  margin: 1.5em 0;
+  max-width: 100%;
+  height: auto;
+}
+.page-content strong { color: var(--color-zinc-900, #18181b); font-weight: 700; }
+.page-content > *:first-child { margin-top: 0; }
+
+/* Tiptap editor area (src/components/dashboard/RichTextEditor.tsx) */
+.rte-content .ProseMirror {
+  outline: none;
+  min-height: 280px;
+}
+.rte-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--text-muted, #9ca3af);
+  pointer-events: none;
+  height: 0;
+}
+

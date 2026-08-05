@@ -52,7 +52,7 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 pt-[76px]">
+    <div className="min-h-screen flex items-center justify-center px-4 pt-20 sm:pt-32">
       {/* Background */}
       <div className="absolute inset-0 -z-10">
         <div className="absolute top-1/3 -left-32 h-80 w-80 rounded-full bg-brand-600/10 blur-3xl" />

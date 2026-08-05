@@ -61,7 +61,7 @@ export default async function OrdersPage() {
   const orderList = (orders ?? []) as Order[];
 
   return (
-    <div className="pt-24 pb-16">
+    <div className="pt-20 sm:pt-32 pb-16">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <Link href="/account" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-700 mb-6">
           <ChevronLeft className="h-4 w-4" />

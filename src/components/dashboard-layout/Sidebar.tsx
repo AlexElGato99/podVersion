@@ -17,6 +17,8 @@ import {
   PanelLeft,
   LayoutTemplate,
   Package,
+  FileText,
+  Info,
 } from "lucide-react";import { Logo } from "@/components/ui/DashboardLogo";
 import { cn } from "@/lib/utils";
 
@@ -44,9 +46,11 @@ const navSections: NavSection[] = [
     title: "Frontend",
     items: [
       { label: "Hero Section", href: "/dashboard/hero", icon: Image },
+      { label: "About Page", href: "/dashboard/about", icon: Info },
       { label: "Sections", href: "/dashboard/homepage-sections", icon: LayoutTemplate },
       { label: "Categories", href: "/dashboard/categories", icon: LayoutGrid },
       { label: "Collections", href: "/dashboard/collections", icon: Layers },
+      { label: "Pages", href: "/dashboard/pages", icon: FileText },
       { label: "SEO Settings", href: "/dashboard/seo", icon: Globe },
     ],
   },

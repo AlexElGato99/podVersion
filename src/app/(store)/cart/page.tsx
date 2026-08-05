@@ -20,7 +20,7 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="pt-24 pb-16 min-h-screen flex items-center justify-center">
+      <div className="pt-20 sm:pt-32 pb-16 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="mx-auto h-24 w-24 rounded-3xl bg-zinc-100 flex items-center justify-center mb-6">
             <ShoppingCart className="h-12 w-12 text-zinc-600" />
@@ -41,7 +41,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="pt-24 pb-16">
+    <div className="pt-20 sm:pt-32 pb-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-10">
           <h1 className="text-3xl font-bold text-zinc-900">
