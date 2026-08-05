@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Sparkles, Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Input from "@/components/ui/Input";
@@ -45,9 +45,11 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <Sparkles className="h-7 w-7 text-brand-600" />
-            <span className="text-2xl font-bold gradient-text">Veliova</span>
+          <Link href="/" className="inline-flex items-center" aria-label="Veliova home">
+            <span className="text-2xl font-black tracking-tight">
+              <span className="text-brand-600">Veli</span>
+              <span className="text-zinc-900">ova</span>
+            </span>
           </Link>
           <h1 className="mt-6 text-2xl font-bold text-zinc-900">
             Welcome back

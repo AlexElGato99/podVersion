@@ -1,18 +1,20 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
-  LayoutGrid, Save, Loader2, Plus, Trash2, GripVertical,
-  CheckCircle2, AlertCircle, RefreshCcw, Type, Download, ExternalLink, Upload,
+  Save, Loader2, Plus, Trash2, GripVertical,
+  CheckCircle2, AlertCircle, RefreshCcw, Type, Download, ExternalLink, Sparkles,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────── */
 interface Category {
   id: string;
   name: string;
-  image_url: string;
   href: string;
+  /** Optional Iconify icon slug (e.g. "lucide:shirt") — leave blank to
+   *  auto-match an icon from the category name. */
+  icon?: string;
 }
 
 interface CategorySettings {
@@ -25,23 +27,6 @@ interface PrintfulCategory {
   id: number;
   parent_id: number;
   title: string;
-  image_url: string;
-}
-
-/* ─── Real Printful category image URLs (by ID) ─────────── */
-const CATEGORY_IMAGES: Record<string, string> = {
-  "1":   "https://files.cdn.printful.com/o/upload/catalog_category/fb/fbf0cf796a5603666e85713ece1708a1_t?v=1764596927",
-  "2":   "https://files.cdn.printful.com/o/upload/catalog_category/04/04140d7cd1565012645092fc8f1d8632_t?v=1764596927",
-  "3":   "https://files.cdn.printful.com/o/upload/catalog_category/96/96e91feb26f0b28ba821534bb0d5478b_t?v=1764596927",
-  "4":   "https://files.cdn.printful.com/o/upload/catalog_category/b1/b1e86be07423274b27b55561ddc6eee9_t?v=1764596927",
-  "5":   "https://files.cdn.printful.com/o/upload/catalog_category/77/7776d01e716d80e3ffbdebbf3db6b198_t?v=1764596927",
-  "93":  "https://files.cdn.printful.com/o/upload/catalog_category/0c/0c38c3b13be79b5f8e1f2f1dccf62115_t?v=1764596927",
-  "116": "https://files.cdn.printful.com/o/upload/catalog_category/9e/9ed797fbbdac07a98f6fdfa06a9f6c8f_t?v=1764596928",
-};
-
-function resolveCategoryImage(cat: PrintfulCategory): string {
-  if (cat.image_url && cat.image_url.startsWith("http")) return cat.image_url;
-  return CATEGORY_IMAGES[String(cat.id)] ?? "";
 }
 
 /* ─── Defaults ───────────────────────────────────────────── */
@@ -78,7 +63,6 @@ export default function CategoriesSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [printfulCats, setPrintfulCats] = useState<PrintfulCategory[]>([]);
   const [showPicker, setShowPicker] = useState(false);
@@ -125,7 +109,6 @@ export default function CategoriesSettingsPage() {
       const seeded = top.map((c) => ({
         id: String(c.id),
         name: c.title,
-        image_url: resolveCategoryImage(c),
         href: `/shop?category=${encodeURIComponent(c.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"))}`,
       }));
       const newSettings = { ...settings, categories: seeded };
@@ -150,7 +133,6 @@ export default function CategoriesSettingsPage() {
     const newCat: Category = {
       id: String(cat.id),
       name: cat.title,
-      image_url: resolveCategoryImage(cat),
       href: `/shop?category=${encodeURIComponent(slug)}`,
     };
     setSettings((s) => {
@@ -167,31 +149,13 @@ export default function CategoriesSettingsPage() {
     setTimeout(() => setMsg(null), 5000);
   }, [settings, supabase]);
 
-  const uploadImage = useCallback(async (catId: string, file: File) => {
-    setUploadingId(catId);
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("catId", catId);
-      const res = await fetch("/api/upload-category-image", { method: "POST", body: form });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Upload failed");
-      setCat(catId, "image_url", json.url);
-    } catch (e) {
-      setMsg({ type: "error", text: `Upload failed: ${(e as Error).message}` });
-      setTimeout(() => setMsg(null), 5000);
-    } finally {
-      setUploadingId(null);
-    }
-  }, []);
-
   const set = (key: keyof CategorySettings, value: string) => setSettings((s) => ({ ...s, [key]: value }));
   const setCat = (id: string, key: keyof Category, value: string) =>
     setSettings((s) => ({ ...s, categories: s.categories.map((c) => c.id === id ? { ...c, [key]: value } : c) }));
   const removeCat = (id: string) => setSettings((s) => ({ ...s, categories: s.categories.filter((c) => c.id !== id) }));
   const addBlank = () => setSettings((s) => ({
     ...s,
-    categories: [...s.categories, { id: Date.now().toString(), name: "New Category", image_url: "", href: "/shop" }],
+    categories: [...s.categories, { id: Date.now().toString(), name: "New Category", href: "/shop" }],
   }));
 
   if (loading) {
@@ -213,7 +177,14 @@ export default function CategoriesSettingsPage() {
             Manage the &quot;Shop by Category&quot; section on the homepage. Import from Printful or add custom categories.
           </p>
         </div>
-
+        <button
+          onClick={importFromPrintful}
+          disabled={importing}
+          style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: 13, fontWeight: 500, cursor: importing ? "wait" : "pointer" }}
+        >
+          {importing ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Download size={13} />}
+          Import from Printful
+        </button>
       </div>
 
       {/* Toast */}
@@ -223,7 +194,26 @@ export default function CategoriesSettingsPage() {
         </div>
       )}
 
-
+      {/* Printful category picker */}
+      {showPicker && (
+        <div style={{ marginBottom: 20, padding: 16, borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg-secondary)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>Pick categories to add</span>
+            <button onClick={() => setShowPicker(false)} style={{ fontSize: 12, color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}>Close</button>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {printfulCats.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => pickPrintfulCategory(c)}
+                style={{ padding: "6px 12px", borderRadius: 999, border: "1px solid var(--border)", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: 12, cursor: "pointer" }}
+              >
+                + {c.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: "grid", gap: 20 }}>
 
@@ -244,24 +234,23 @@ export default function CategoriesSettingsPage() {
         {/* Categories list */}
         <SectionCard icon={GripVertical} title={`Categories (${settings.categories.length})`}>
           <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: -10, marginBottom: 16 }}>
-            Each category shows a square image. Paste any image URL or upload from computer. The live preview below matches exactly how it looks on the homepage.
+            Each category shows an icon that&apos;s auto-matched from its name (e.g. &quot;Mugs&quot; gets a coffee mug icon).
+            Set a custom icon below to override the match — use any{" "}
+            <a href="https://icon-sets.iconify.design/" target="_blank" rel="noreferrer" style={{ color: "var(--purple)" }}>Iconify</a> icon name, e.g. <code>lucide:shirt</code>.
           </p>
-
-
 
           {/* ── Edit cards ─────────────────────────────────── */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {settings.categories.map((cat, idx) => (
               <div key={cat.id} style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--bg-secondary)" }}>
 
-                {/* Header row with square preview */}
+                {/* Header row with icon preview */}
                 <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", borderBottom: "1px solid var(--border)", background: "var(--bg-primary)" }}>
-                  {/* Square preview — same aspect-ratio as frontend */}
-                  <div style={{ position: "relative", width: 72, height: 72, borderRadius: 14, overflow: "hidden", background: "#f4f4f5", border: "1px solid #e4e4e7", flexShrink: 0 }}>
-                    {cat.image_url
+                  <div style={{ position: "relative", width: 56, height: 56, borderRadius: "50%", overflow: "hidden", background: "#f4f4f5", border: "1px solid #e4e4e7", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {cat.icon
                       // eslint-disable-next-line @next/next/no-img-element
-                      ? <img src={cat.image_url} alt={cat.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                      : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "#94a3b8" }}>🖼️</div>
+                      ? <img src={`https://api.iconify.design/${cat.icon}.svg`} alt={cat.name} style={{ width: 28, height: 28 }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      : <Sparkles size={20} color="#94a3b8" />
                     }
                   </div>
                   <div style={{ flex: 1 }}>
@@ -284,23 +273,8 @@ export default function CategoriesSettingsPage() {
                     <input type="text" value={cat.href} onChange={(e) => setCat(cat.id, "href", e.target.value)} style={inp} placeholder="/shop?category=t-shirts" />
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
-                    <label style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 5 }}>Image</label>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <input type="text" value={cat.image_url} onChange={(e) => setCat(cat.id, "image_url", e.target.value)} style={{ ...inp, flex: 1 }} placeholder="Paste URL or upload from computer →" />
-                      <label style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: "1px solid var(--border)", background: uploadingId === cat.id ? "#f1f5f9" : "var(--bg-primary)", color: uploadingId === cat.id ? "var(--text-muted)" : "var(--text-primary)", fontSize: 12, fontWeight: 600, cursor: uploadingId === cat.id ? "wait" : "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
-                        {uploadingId === cat.id
-                          ? <><Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> Uploading…</>
-                          : <><Upload size={13} /> Upload image</>}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          style={{ display: "none" }}
-                          disabled={uploadingId !== null}
-                          onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(cat.id, f); e.target.value = ""; }}
-                        />
-                      </label>
-                    </div>
-                    <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Uploaded images are stored in Supabase Storage. Editing the URL overrides the upload.</p>
+                    <label style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 5 }}>Icon override (optional)</label>
+                    <input type="text" value={cat.icon ?? ""} onChange={(e) => setCat(cat.id, "icon", e.target.value)} style={inp} placeholder="Leave blank to auto-match, e.g. lucide:shirt" />
                   </div>
                   {cat.href && (
                     <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>

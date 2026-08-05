@@ -15,6 +15,15 @@ const sizes = {
   xl: { mark: 44, text: "text-xl", gap: "gap-2.5" },
 };
 
+// Source SVGs are 30x20 (viewBox "0 0 30 20") — keep the mark's box at that
+// aspect ratio instead of forcing it square, so the artwork isn't stretched.
+const MARK_ASPECT = 20 / 30;
+
+/**
+ * Swaps between the two supplied logo files based on the dashboard's theme.
+ * `dark:` here follows the `.dark` class on `.dashboard-root`
+ * (see the `@custom-variant dark` remap in globals.css), not the OS setting.
+ */
 function LogoMark({
   size,
   label,
@@ -24,30 +33,29 @@ function LogoMark({
   label: string;
   className?: string;
 }) {
+  const height = Math.round(size * MARK_ASPECT);
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-label={label}
-      role="img"
-      className={className}
+    <span
+      className={cn("relative inline-block shrink-0", className)}
+      style={{ width: size, height }}
     >
-      <rect x="3" y="3" width="42" height="42" rx="13" fill="currentColor" opacity="0.1" />
-      <path
-        d="M11.5 10.5H19L24 27.5L29 10.5H36.5L27.25 37.5H20.75L11.5 10.5Z"
-        fill="currentColor"
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo-light.svg"
+        alt={label}
+        width={size}
+        height={height}
+        className="absolute inset-0 h-full w-full object-contain dark:hidden"
       />
-      <path
-        d="M18 37.5H30"
-        stroke="currentColor"
-        strokeWidth="4"
-        strokeLinecap="round"
-        opacity="0.45"
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo-dark.svg"
+        alt={label}
+        width={size}
+        height={height}
+        className="absolute inset-0 hidden h-full w-full object-contain dark:block"
       />
-    </svg>
+    </span>
   );
 }
 
@@ -56,11 +64,7 @@ export function Logo({ variant = "full", className, size = "md" }: LogoProps) {
 
   return (
     <div className={cn("inline-flex items-center", s.gap, className)}>
-      <LogoMark
-        size={s.mark}
-        label="Veliova logo"
-        className="shrink-0 text-brand-600 dark:text-white"
-      />
+      <LogoMark size={s.mark} label="Veliova logo" />
       {variant === "full" && (
         <span className={cn("font-black tracking-tight text-[var(--text-primary)] dark:text-white", s.text)}>
           Veliova
@@ -70,13 +74,23 @@ export function Logo({ variant = "full", className, size = "md" }: LogoProps) {
   );
 }
 
-/* Dark variant with inverted colors for use on dark bg */
+/* Always shows the light (white-fill) logo mark — for use on a dark
+   background regardless of the dashboard's own theme setting. */
 export function LogoDark({ variant = "full", className, size = "md" }: LogoProps) {
   const s = sizes[size];
+  const height = Math.round(s.mark * MARK_ASPECT);
 
   return (
     <div className={cn("inline-flex items-center", s.gap, className)}>
-      <LogoMark size={s.mark} label="Veliova logo" className="shrink-0 text-white" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo-dark.svg"
+        alt="Veliova logo"
+        width={s.mark}
+        height={height}
+        className="shrink-0 object-contain"
+        style={{ width: s.mark, height }}
+      />
       {variant === "full" && (
         <span className={cn("font-black tracking-tight text-white", s.text)}>
           Veliova

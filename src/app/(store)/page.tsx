@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 
 // Always render with fresh DB settings so homepage section layout (max_products)
 // reflects dashboard changes immediately.
@@ -44,6 +43,9 @@ interface StoreCategory {
   name: string;
   image_url: string;
   href: string;
+  /** Optional admin override — an Iconify icon slug (e.g. "lucide:shirt").
+   *  Leave unset to auto-match an icon from the category name. */
+  icon?: string;
 }
 
 interface CategorySettings {
@@ -84,6 +86,66 @@ async function getCategorySettings(): Promise<CategorySettings> {
     };
   } catch { /* fall through */ }
   return CATEGORY_DEFAULTS;
+}
+
+// ── "Shop by Category" icons — served via the Iconify API instead of photos ──
+// Each icon is a literal depiction of the category (an actual t-shirt, cap,
+// mug, sofa, etc.) rather than an abstract symbol, picked from whichever
+// Iconify set (Phosphor, Tabler, Lucide) has the clearest match — verified
+// against api.iconify.design directly. Keyword table checked
+// most-specific-first, same pattern as inferCategory() above.
+const CATEGORY_STYLE_MAP: { test: RegExp; icon: string; bg: string; accent: string }[] = [
+  { test: /women|woman|ladies|dress/i, icon: "ph:dress", bg: "bg-rose-50", accent: "text-rose-600" },
+  { test: /\bmen\b|\bman\b|guys/i, icon: "ph:t-shirt", bg: "bg-blue-50", accent: "text-blue-600" },
+  { test: /kid|youth|child|baby|toddler/i, icon: "lucide:baby", bg: "bg-amber-50", accent: "text-amber-600" },
+  { test: /mug|cup|tumbler|drinkware/i, icon: "tabler:mug", bg: "bg-amber-50", accent: "text-amber-600" },
+  { test: /sticker|decal/i, icon: "lucide:sticker", bg: "bg-green-50", accent: "text-green-600" },
+  { test: /canvas|poster|wall art|wall decor|art print/i, icon: "lucide:image", bg: "bg-rose-50", accent: "text-rose-600" },
+  { test: /cap|hat|beanie|snapback|trucker/i, icon: "ph:baseball-cap", bg: "bg-purple-50", accent: "text-purple-600" },
+  { test: /hoodie|sweatshirt|pullover|fleece/i, icon: "ph:hoodie", bg: "bg-blue-50", accent: "text-blue-600" },
+  { test: /shoe|footwear|sneaker/i, icon: "lucide:footprints", bg: "bg-zinc-50", accent: "text-zinc-600" },
+  { test: /jewel|necklace/i, icon: "mdi:necklace", bg: "bg-purple-50", accent: "text-purple-600" },
+  { test: /watch/i, icon: "lucide:watch", bg: "bg-purple-50", accent: "text-purple-600" },
+  { test: /glass|eyewear|sunglasses/i, icon: "ph:sunglasses", bg: "bg-zinc-50", accent: "text-zinc-600" },
+  { test: /phone|case/i, icon: "lucide:smartphone", bg: "bg-zinc-50", accent: "text-zinc-600" },
+  { test: /bag|tote|backpack/i, icon: "lucide:shopping-bag", bg: "bg-zinc-50", accent: "text-zinc-600" },
+  { test: /accessor/i, icon: "ph:sunglasses", bg: "bg-purple-50", accent: "text-purple-600" },
+  { test: /home|living|decor|kitchen|furniture/i, icon: "lucide:sofa", bg: "bg-emerald-50", accent: "text-emerald-600" },
+  { test: /t-shirt|tee|shirt|apparel|clothing|jersey|polo/i, icon: "lucide:shirt", bg: "bg-orange-50", accent: "text-orange-600" },
+];
+const DEFAULT_CATEGORY_STYLE = { icon: "lucide:shopping-bag", bg: "bg-zinc-50", accent: "text-zinc-600" };
+
+function getCategoryStyle(name: string, iconOverride?: string) {
+  const matched = CATEGORY_STYLE_MAP.find((c) => c.test.test(name)) ?? DEFAULT_CATEGORY_STYLE;
+  // An admin-set icon overrides which icon is shown, but colors still come
+  // from the keyword match (or the neutral default) — keeps the palette
+  // consistent without needing a color picker in the dashboard.
+  return iconOverride ? { ...matched, icon: iconOverride } : matched;
+}
+
+// Generic tag icon shown if the Iconify API is unreachable — keeps the
+// homepage rendering instead of failing the whole category section.
+const FALLBACK_ICON_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L3 9.83a2 2 0 0 0 0 2.83l9.58 9.58a2 2 0 0 0 2.83 0l6.58-6.59a2 2 0 0 0 .6-1.41Z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>';
+
+// Fetched icon SVGs are cached per server process — icons are a small, fixed
+// set, so there's no reason to re-fetch the same icon on every request
+// (same pattern as printful.ts's catalogTypeCache / printify.ts's blueprintCache).
+const iconSvgCache = new Map<string, string>();
+
+async function getIconSvg(icon: string): Promise<string> {
+  const cached = iconSvgCache.get(icon);
+  if (cached) return cached;
+  try {
+    const res = await fetch(`https://api.iconify.design/${icon}.svg`);
+    if (!res.ok) throw new Error(`Iconify API error ${res.status}`);
+    const svg = await res.text();
+    iconSvgCache.set(icon, svg);
+    return svg;
+  } catch {
+    iconSvgCache.set(icon, FALLBACK_ICON_SVG);
+    return FALLBACK_ICON_SVG;
+  }
 }
 
 const HERO_DEFAULTS: HeroSettings = {
@@ -261,6 +323,16 @@ export default async function HomePage() {
     getAllProducts(), getHeroSettings(), getCategorySettings(), getHomepageSections()
   ]);
 
+  // Resolve each "Shop by Category" tile's icon (name + color) up front so
+  // the SVG markup is ready before render — keeps this fully server-rendered
+  // with no client-side fetch/flash.
+  const categoryIcons = await Promise.all(
+    categoryData.categories.map(async (cat) => {
+      const style = getCategoryStyle(cat.name, cat.icon);
+      return { ...style, svg: await getIconSvg(style.icon) };
+    })
+  );
+
   // Classify every product (not just a handful) so a section never comes up
   // empty just because its matching products weren't among the first few
   // fetched — each product is bucketed using the authoritative Printful
@@ -286,8 +358,8 @@ export default async function HomePage() {
   return (
     <div className="overflow-x-hidden bg-white">
       {/* ── Hero — simple, text-only, no images/animations ── */}
-      <section className="bg-white pt-[100px]">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8">
+      <section className="bg-white pt-[100px] lg:flex lg:min-h-screen lg:items-center">
+        <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6 px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8 lg:py-0">
           <h1 className="text-4xl font-extrabold leading-[1.1] tracking-tight text-zinc-900 sm:text-5xl lg:text-[52px]">
             {hero.headline}
           </h1>
@@ -327,23 +399,25 @@ export default async function HomePage() {
           </div>
           {categoryData.categories.length > 0 && (
             <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 lg:grid-cols-7">
-              {categoryData.categories.map((cat) => (
-                <Link key={cat.id} href={cat.href} className="group flex flex-col items-center gap-2.5">
-                  <div className="relative w-full aspect-square overflow-hidden rounded-2xl bg-zinc-100 border border-zinc-200 group-hover:border-brand-300 group-hover:shadow-md transition-all duration-200">
-                    <Image
-                      src={cat.image_url}
-                      alt={cat.name}
-                      fill
-                      sizes="(max-width: 640px) 33vw, (max-width: 1024px) 25vw, 14vw"
-                      className="object-cover transition-transform duration-300 group-hover:scale-105"
-                      unoptimized
-                    />
-                  </div>
-                  <span className="text-xs font-medium text-zinc-700 group-hover:text-brand-600 text-center leading-tight transition-colors">
-                    {cat.name}
-                  </span>
-                </Link>
-              ))}
+              {categoryData.categories.map((cat, i) => {
+                const { bg, accent, svg } = categoryIcons[i];
+                return (
+                  <Link key={cat.id} href={cat.href} className="group flex flex-col items-center gap-2.5">
+                    <div
+                      className={`flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full border border-zinc-200 group-hover:border-brand-300 group-hover:shadow-md transition-all duration-200 ${bg}`}
+                    >
+                      <span
+                        className={`inline-block h-12 w-12 sm:h-14 sm:w-14 transition-transform duration-300 group-hover:scale-110 [&>svg]:h-full [&>svg]:w-full ${accent}`}
+                        aria-hidden
+                        dangerouslySetInnerHTML={{ __html: svg }}
+                      />
+                    </div>
+                    <span className="text-xs font-medium text-zinc-700 group-hover:text-brand-600 text-center leading-tight transition-colors">
+                      {cat.name}
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
