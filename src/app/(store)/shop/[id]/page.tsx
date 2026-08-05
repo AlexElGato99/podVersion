@@ -24,6 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title: `${name} | Veliova`,
       description: desc.slice(0, 160),
+      alternates: { canonical: `https://veliova.com/shop/${id}` },
       openGraph: {
         title: `${name} | Veliova`,
         description: desc.slice(0, 160),
@@ -53,20 +54,47 @@ export default async function ProductPage({ params }: Props) {
     const thumb = product.sync_variants?.[0]?.files?.find(f => f.type === "preview" && f.preview_url)?.preview_url
       ?? product.sync_product.thumbnail_url;
 
+    // Every distinct mockup image, not just the first — Google explicitly
+    // recommends multiple images per product for Merchant Listing eligibility.
+    const images = Array.from(new Set((product.all_images ?? []).map((img) => img.src).filter(Boolean)));
+    if (images.length === 0 && thumb) images.push(thumb);
+
+    // Real stock status rather than a hardcoded "always in stock" claim —
+    // structured data must match reality, not just look complete.
+    const anyVariantAvailable = product.sync_variants?.some((v) => v.availability_status === "active") ?? true;
+
     const jsonLd = {
       "@context": "https://schema.org",
       "@type": "Product",
       "name": name,
       "description": product.sync_product.description ?? `${name} — custom print-on-demand product by Veliova.`,
-      "image": thumb,
+      "image": images,
+      "sku": String(product.sync_product.id || productId),
       "brand": { "@type": "Brand", "name": "Veliova" },
       "offers": {
         "@type": "Offer",
         "price": price,
         "priceCurrency": product.sync_variants?.[0]?.currency ?? "USD",
-        "availability": "https://schema.org/InStock",
+        "availability": anyVariantAvailable ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
         "url": `https://veliova.com/shop/${id}`,
         "seller": { "@type": "Organization", "name": "Veliova" },
+        // Matches the trust-badge copy shown on this same page — keep in
+        // sync with src/app/(store)/shop/[id]/ProductClient.tsx if that
+        // copy ever changes, since structured data must reflect visible content.
+        "shippingDetails": {
+          "@type": "OfferShippingDetails",
+          "shippingDestination": { "@type": "DefinedRegion", "addressCountry": "US" },
+          "deliveryTime": {
+            "@type": "ShippingDeliveryTime",
+            "transitTime": { "@type": "QuantitativeValue", "minValue": 3, "maxValue": 5, "unitCode": "DAY" },
+          },
+        },
+        "hasMerchantReturnPolicy": {
+          "@type": "MerchantReturnPolicy",
+          "applicableCountry": "US",
+          "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+          "merchantReturnDays": 30,
+        },
       },
     };
 

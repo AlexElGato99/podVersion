@@ -9,7 +9,6 @@ import {
   ChevronRight,
   ShoppingCart,
   Heart,
-  Star,
   Truck,
   ShieldCheck,
   RotateCcw,
@@ -418,7 +417,7 @@ export default function ProductClient({ product, productId, printifyShopId }: Pr
                 { icon: Truck,       label: "Free Shipping",     sub: "On orders over $50" },
                 { icon: ShieldCheck, label: "Secure Checkout",   sub: "SSL encrypted payment" },
                 { icon: RotateCcw,   label: "30-Day Returns",    sub: "No questions asked" },
-                { icon: Package,     label: "Ships in 3-5 days", sub: "Fulfilled by Printful" },
+                { icon: Package,     label: "Ships in 3-5 days", sub: "Made to order" },
               ].map(({ icon: Icon, label, sub }) => (
                 <div key={label} className="flex items-start gap-3 p-3 rounded-xl bg-zinc-50">
                   <div className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg bg-white border border-zinc-200">
@@ -441,13 +440,6 @@ export default function ProductClient({ product, productId, printifyShopId }: Pr
                 {displayName}
               </h1>
               <div className="mt-3 flex items-center gap-3 flex-wrap">
-                <div className="flex items-center gap-0.5">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <Star key={s} className={cn("h-4 w-4", s <= 4 ? "fill-amber-400 text-amber-400" : "fill-zinc-200 text-zinc-200")} />
-                  ))}
-                  <span className="ml-1.5 text-sm font-medium text-zinc-700">4.0</span>
-                  <span className="ml-1 text-sm text-zinc-400">(42 reviews)</span>
-                </div>
                 <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />
                   In Stock

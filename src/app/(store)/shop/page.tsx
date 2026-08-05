@@ -32,6 +32,21 @@ async function ShopWrapper() {
   } catch {
     // empty
   }
+
+  // ShopClient/ProductCard only ever read these 6 fields — build plain literals
+  // rather than forwarding the full CommonProduct objects. Each Printify
+  // product carries a `_raw` blob with every color/size variant's cost, price
+  // and SKU; passing that straight through to a Client Component serializes
+  // it into the page payload for all ~40 products even though nothing reads
+  // it, which is what was ballooning this page to 10MB+ / ~39s to load.
+  const leanProducts = products.map((p) => ({
+    id: p.id,
+    name: p.name,
+    thumbnail_url: p.thumbnail_url,
+    starting_price: p.starting_price,
+    best_image: p.best_image,
+    catalog_type_name: p.catalog_type_name,
+  }));
   try {
     const supabase = await createClient();
     const catData = await supabase.from("category_settings").select("categories").eq("id", 1).single();
@@ -42,7 +57,7 @@ async function ShopWrapper() {
     // empty
   }
 
-  return <ShopClient products={products} categoryOptions={categories} />;
+  return <ShopClient products={leanProducts} categoryOptions={categories} />;
 }
 
 export default function ShopPage() {
