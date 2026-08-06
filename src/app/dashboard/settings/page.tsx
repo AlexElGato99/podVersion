@@ -547,6 +547,8 @@ function MerchantGuide() {
         )}
       </div>
 
+      <MerchantSyncPanel />
+
       <ol className="space-y-4">
         <GuideStep n={1} title="Create the Merchant Center account">
           Create an account at Google Merchant Center and verify your store domain. Copy the Merchant ID
@@ -614,6 +616,160 @@ function MerchantGuide() {
           Open Google Merchant Center
           <ExternalLink size={11} />
         </a>
+      </div>
+    </div>
+  );
+}
+
+interface SyncProgress {
+  total: number;
+  processed: number;
+  succeeded: number;
+  failed: number;
+  errors: Array<{ offerId: string; message: string }>;
+}
+
+/**
+ * Pushes the whole catalogue to Merchant Center in chunks, driven from the
+ * browser so each request stays inside the serverless time limit and the admin
+ * sees progress rather than a request that appears to hang.
+ */
+function MerchantSyncPanel() {
+  const [phase, setPhase] = useState<"idle" | "counting" | "syncing" | "done" | "error">("idle");
+  const [message, setMessage] = useState("");
+  const [progress, setProgress] = useState<SyncProgress | null>(null);
+
+  const preview = async () => {
+    setPhase("counting");
+    setMessage("");
+    setProgress(null);
+    try {
+      const res = await fetch("/api/admin/merchant-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dryRun: true }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Preview failed.");
+      setPhase("idle");
+      setMessage(
+        `${json.total} variants across ${json.productCount} products are ready to send` +
+          (json.skippedCount ? `. ${json.skippedCount} skipped.` : ".")
+      );
+    } catch (err) {
+      setPhase("error");
+      setMessage(err instanceof Error ? err.message : "Preview failed.");
+    }
+  };
+
+  const runSync = async () => {
+    setPhase("syncing");
+    setMessage("");
+    const totals: SyncProgress = { total: 0, processed: 0, succeeded: 0, failed: 0, errors: [] };
+    let offset = 0;
+
+    try {
+      // Keep requesting the next chunk until the server reports it is done.
+      for (let guard = 0; guard < 200; guard++) {
+        const res = await fetch("/api/admin/merchant-sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ offset, chunkSize: 500 }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? "Sync failed.");
+
+        totals.total = json.total;
+        totals.processed += json.processed;
+        totals.succeeded += json.succeeded;
+        totals.failed += json.failed;
+        if (json.errors?.length) totals.errors.push(...json.errors);
+        setProgress({ ...totals, errors: totals.errors.slice(0, 10) });
+
+        if (json.done) break;
+        offset = json.nextOffset;
+      }
+
+      setPhase("done");
+      setMessage(
+        `Sent ${totals.succeeded} of ${totals.total} variants to Merchant Center` +
+          (totals.failed ? `, ${totals.failed} rejected.` : ".")
+      );
+    } catch (err) {
+      setPhase("error");
+      setMessage(err instanceof Error ? err.message : "Sync failed.");
+    }
+  };
+
+  const busy = phase === "syncing" || phase === "counting";
+  const pct = progress && progress.total > 0
+    ? Math.round((progress.processed / progress.total) * 100)
+    : 0;
+
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4 space-y-3">
+      <div>
+        <h3 className="text-xs font-semibold text-[var(--text-secondary)]">Sync catalogue to Google</h3>
+        <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+          Sends every sellable size and colour from the live Printify catalogue straight to Merchant
+          Center in batches. Run this for the initial upload and again whenever products change.
+        </p>
+      </div>
+
+      {progress && (
+        <div className="space-y-1.5">
+          <div className="h-1.5 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
+            <div
+              className="h-full bg-green-600 dark:bg-green-500 transition-[width] duration-300"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+            <span>{progress.processed} of {progress.total} variants</span>
+            <span>{progress.succeeded} accepted{progress.failed > 0 ? `, ${progress.failed} rejected` : ""}</span>
+          </div>
+        </div>
+      )}
+
+      {message && (
+        <div className={`text-xs font-medium px-3 py-2 rounded-lg ${
+          phase === "error"
+            ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+            : phase === "done"
+              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+              : "bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
+        }`}>
+          {message}
+        </div>
+      )}
+
+      {progress && progress.errors.length > 0 && (
+        <ul className="text-[11px] text-[var(--text-muted)] space-y-1 max-h-32 overflow-y-auto">
+          {progress.errors.map((e, i) => (
+            <li key={i} className="font-mono break-all">{e.offerId}: {e.message}</li>
+          ))}
+        </ul>
+      )}
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={preview}
+          disabled={busy}
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
+        >
+          {phase === "counting" ? <Loader2 size={12} className="animate-spin" /> : null}
+          Preview count
+        </button>
+        <button
+          type="button"
+          onClick={runSync}
+          disabled={busy}
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border-none bg-[var(--purple)] text-xs font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+        >
+          {phase === "syncing" ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
+          {phase === "syncing" ? "Syncing..." : "Sync now"}
+        </button>
       </div>
     </div>
   );

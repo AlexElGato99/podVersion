@@ -238,6 +238,86 @@ export async function upsertMerchantProduct(
   };
 }
 
+export interface BatchPushResult {
+  submitted: number;
+  succeeded: number;
+  failed: number;
+  errors: Array<{ offerId: string; message: string }>;
+}
+
+/**
+ * Push many products in one request via `products.custombatch`.
+ *
+ * Google caps a custombatch at 1000 entries. Pushing items individually would
+ * mean one HTTP round trip each, which is far too slow for a catalogue of a few
+ * thousand variants.
+ */
+export async function batchUpsertMerchantProducts(
+  rows: SupabaseProductRow[]
+): Promise<BatchPushResult> {
+  const config = await readConfig();
+  const client = getContentClient(config);
+
+  const result: BatchPushResult = {
+    submitted: 0,
+    succeeded: 0,
+    failed: 0,
+    errors: [],
+  };
+
+  const CHUNK = 1000;
+  for (let start = 0; start < rows.length; start += CHUNK) {
+    const slice = rows.slice(start, start + CHUNK);
+
+    // Rows that cannot even be mapped (missing image/title) are reported here
+    // rather than aborting the whole batch.
+    const entries: content_v2_1.Schema$ProductsCustomBatchRequestEntry[] = [];
+    const offerIdByBatchId = new Map<number, string>();
+
+    slice.forEach((row, i) => {
+      const batchId = start + i;
+      try {
+        const product = mapToGoogleProduct(row, config.siteUrl);
+        offerIdByBatchId.set(batchId, product.offerId!);
+        entries.push({
+          batchId,
+          merchantId: config.merchantId,
+          method: "insert",
+          product,
+        });
+      } catch (err) {
+        result.failed++;
+        result.errors.push({
+          offerId: buildOfferId(row),
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    });
+
+    if (entries.length === 0) continue;
+
+    result.submitted += entries.length;
+
+    const response = await client.products.custombatch({
+      requestBody: { entries },
+    });
+
+    for (const entry of response.data.entries ?? []) {
+      if (entry.errors?.errors?.length) {
+        result.failed++;
+        result.errors.push({
+          offerId: offerIdByBatchId.get(entry.batchId ?? -1) ?? "unknown",
+          message: entry.errors.errors.map((e) => e.message).join("; "),
+        });
+      } else {
+        result.succeeded++;
+      }
+    }
+  }
+
+  return result;
+}
+
 /** Remove a product from Merchant Center (used for DELETE webhook events). */
 export async function deleteMerchantProduct(
   row: Pick<SupabaseProductRow, "id">
