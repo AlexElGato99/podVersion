@@ -36,6 +36,39 @@ function htmlToPlainText(html: string): string {
  */
 const MADE_TO_ORDER_STOCK = 99;
 
+/**
+ * Map a product onto Google's product taxonomy.
+ *
+ * This matters beyond categorisation: Google validates required attributes per
+ * category. Filing a canvas print under an apparel category makes it expect a
+ * colour and a clothing size, which is why non-apparel items were being flagged.
+ *
+ * Checked most-specific-first, the same ordering used elsewhere in the app.
+ */
+const CATEGORY_RULES: { test: RegExp; category: string }[] = [
+  { test: /phone case|tough case|snap case|phone/i, category: "Electronics > Communications > Telephony > Mobile Phone Accessories > Mobile Phone Cases" },
+  { test: /canvas|poster|wall art|art print|framed print/i, category: "Home & Garden > Decor > Artwork > Posters, Prints, & Visual Artwork" },
+  { test: /mug|tumbler|drinkware|cup|bottle/i, category: "Home & Garden > Kitchen & Dining > Tableware > Drinkware > Mugs" },
+  { test: /sticker|decal/i, category: "Arts & Entertainment > Hobbies & Creative Arts > Arts & Crafts > Art & Crafting Materials > Embellishments & Trims > Decorative Stickers" },
+  { test: /tote|backpack|handbag|\bbag\b/i, category: "Apparel & Accessories > Handbags, Wallets & Cases > Handbags" },
+  { test: /hat|cap|beanie|snapback|trucker/i, category: "Apparel & Accessories > Clothing Accessories > Hats" },
+  { test: /sock/i, category: "Apparel & Accessories > Clothing > Underwear & Socks > Socks" },
+  { test: /hoodie|sweatshirt|pullover|fleece|crewneck/i, category: "Apparel & Accessories > Clothing > Shirts & Tops" },
+  { test: /t-shirt|tee|shirt|tank|jersey|polo/i, category: "Apparel & Accessories > Clothing > Shirts & Tops" },
+];
+
+const DEFAULT_CATEGORY = "Apparel & Accessories > Clothing > Shirts & Tops";
+
+function inferGoogleCategory(name: string, catalogTypeName?: string | null): string {
+  // The Printify blueprint title is authoritative; the merchant's own product
+  // title is only a fallback, since it may not mention the product type.
+  const primary = catalogTypeName?.trim() || "";
+  const match =
+    CATEGORY_RULES.find((r) => primary && r.test.test(primary)) ??
+    CATEGORY_RULES.find((r) => r.test.test(name));
+  return match?.category ?? DEFAULT_CATEGORY;
+}
+
 export interface CatalogBuildResult {
   rows: SupabaseProductRow[];
   productCount: number;
@@ -62,6 +95,7 @@ export async function buildMerchantRows(): Promise<CatalogBuildResult> {
       const description = htmlToPlainText(detail.sync_product.description ?? "");
       const slug = productSlug(product.name, product.id);
       const itemGroupId = String(product.id);
+      const googleCategory = inferGoogleCategory(product.name, product.catalog_type_name);
 
       const sellable = detail.sync_variants.filter(
         (v) => v.availability_status === "active"
@@ -94,6 +128,7 @@ export async function buildMerchantRows(): Promise<CatalogBuildResult> {
           stock: MADE_TO_ORDER_STOCK,
           size: variant.size ?? null,
           color: variant.color ?? null,
+          google_product_category: googleCategory,
           slug,
         });
       }

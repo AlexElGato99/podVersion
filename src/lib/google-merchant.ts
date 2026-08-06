@@ -165,6 +165,13 @@ export function mapToGoogleProduct(
   const inStock = typeof row.stock === "number" ? row.stock > 0 : true;
   const productPath = row.slug ? `/shop/${row.slug}` : `/shop/${row.id}`;
 
+  const category =
+    row.google_product_category || "Apparel & Accessories > Clothing > Shirts & Tops";
+  // Google only expects colour/size/gender/age-group on apparel. Everything
+  // under a different taxonomy branch (wall art, drinkware, phone cases)
+  // must omit them.
+  const isApparel = category.startsWith("Apparel & Accessories");
+
   const product: content_v2_1.Schema$Product = {
     offerId: buildOfferId(row),
     title: row.title.trim().slice(0, 150), // Google truncates past 150 chars
@@ -182,14 +189,21 @@ export function mapToGoogleProduct(
     price: { value: formatPrice(row.price), currency },
 
     brand: row.brand || "Veliova",
-    googleProductCategory:
-      row.google_product_category || "Apparel & Accessories > Clothing > Shirts & Tops",
+    googleProductCategory: category,
 
-    // ── Apparel-specific attributes ──
-    ageGroup: row.age_group || "adult",
-    gender: row.gender || "unisex",
+    // Age group, gender and size system are apparel attributes. Sending them
+    // on a canvas print or phone case is incorrect, and sending an empty
+    // colour for those categories is what produced Google's "Missing color"
+    // warnings - colour is only expected for apparel.
+    ...(isApparel
+      ? {
+          ageGroup: row.age_group || "adult",
+          gender: row.gender || "unisex",
+          ...(row.size ? { sizeSystem: "US", sizeType: "regular" } : {}),
+        }
+      : {}),
     ...(row.color ? { color: row.color } : {}),
-    ...(row.size ? { sizes: [row.size], sizeSystem: "US", sizeType: "regular" } : {}),
+    ...(row.size ? { sizes: [row.size] } : {}),
 
     // Variants of one design share an itemGroupId so Google groups them.
     itemGroupId: row.item_group_id || String(row.id),
