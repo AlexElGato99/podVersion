@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-export type SettingsSection = "payments" | "printful" | "printify" | "general" | "email" | "analytics";
+export type SettingsSection = "payments" | "printful" | "printify" | "general" | "email" | "analytics" | "google_merchant";
 
 // Created lazily (not at module load) and guarded — if these env vars are
 // missing/misconfigured (e.g. not set for the Vercel "Production" environment
@@ -59,6 +59,12 @@ const ENV_FALLBACKS: Record<SettingsSection, Record<string, string | undefined>>
     gtm_container_id: process.env.NEXT_PUBLIC_GTM_CONTAINER_ID,
     meta_pixel_id: process.env.NEXT_PUBLIC_META_PIXEL_ID,
     meta_conversions_token: process.env.META_CONVERSIONS_TOKEN,
+  },
+  google_merchant: {
+    google_merchant_id: process.env.GOOGLE_MERCHANT_ID,
+    google_merchant_client_email: process.env.GOOGLE_MERCHANT_CLIENT_EMAIL,
+    google_merchant_private_key: process.env.GOOGLE_MERCHANT_PRIVATE_KEY,
+    supabase_webhook_secret: process.env.SUPABASE_WEBHOOK_SECRET,
   },
 };
 

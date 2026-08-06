@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Eye, EyeOff, KeyRound, ShieldCheck, CreditCard, Package, Mail,
   BarChart3, Save, Loader2, Layers, Zap, CheckCircle2, XCircle,
+  ShoppingBag, Circle, ExternalLink,
 } from "lucide-react";
 
 type FieldKey = "current" | "next" | "confirm";
-type TabId = "security" | "payments" | "printful" | "printify" | "general" | "email" | "analytics";
+type TabId = "security" | "payments" | "printful" | "printify" | "general" | "email" | "analytics" | "google_merchant";
 type IntegrationSection = Exclude<TabId, "security">;
 
 type Status =
@@ -35,6 +36,7 @@ const TABS: { id: TabId; label: string; icon: typeof ShieldCheck }[] = [
   { id: "printify", label: "Printify API", icon: Package },
   { id: "email",    label: "Email", icon: Mail },
   { id: "analytics",label: "Analytics", icon: BarChart3 },
+  { id: "google_merchant", label: "Google Merchant", icon: ShoppingBag },
 ];
 
 const SECTION_INFO: Record<IntegrationSection, { title: string; description: string; fields: FieldConfig[] }> = {
@@ -102,9 +104,19 @@ const SECTION_INFO: Record<IntegrationSection, { title: string; description: str
       { key: "meta_conversions_token", label: "Meta Conversions API Access Token", secret: true },
     ],
   },
+  google_merchant: {
+    title: "Google Merchant Center",
+    description: "Credentials used to publish products to Google Shopping through the Content API. Products sync automatically whenever a row changes in the products table.",
+    fields: [
+      { key: "google_merchant_id", label: "Merchant ID", helper: "Found in the top-right of Google Merchant Center.", placeholder: "123456789" },
+      { key: "google_merchant_client_email", label: "Service account email", helper: "The service account granted access under Merchant Center, Settings, Users.", placeholder: "sync@project.iam.gserviceaccount.com" },
+      { key: "google_merchant_private_key", label: "Service account private key", secret: true, helper: "The private_key value from the service account JSON key file, including the BEGIN and END lines." },
+      { key: "supabase_webhook_secret", label: "Webhook secret", secret: true, helper: "Shared secret that authenticates incoming Supabase webhooks. Generate with: openssl rand -hex 32" },
+    ],
+  },
 };
 
-const EMPTY_SECTION_MAP = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {} } as Record<IntegrationSection, Record<string, string>>;
+const EMPTY_SECTION_MAP = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {}, google_merchant: {} } as Record<IntegrationSection, Record<string, string>>;
 
 const RULES = [
   { label: "At least 8 characters", test: (v: string) => v.length >= 8 },
@@ -132,12 +144,13 @@ export default function SettingsPage() {
     printify: { kind: "idle" },
     email: { kind: "idle" },
     analytics: { kind: "idle" },
+    google_merchant: { kind: "idle" },
   });
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
 
   const applySettings = useCallback((settings: Partial<Record<IntegrationSection, Record<string, string>>>) => {
-    const nextValues = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {} } as Record<IntegrationSection, Record<string, string>>;
-    const nextPlaceholders = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {} } as Record<IntegrationSection, Record<string, string>>;
+    const nextValues = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {}, google_merchant: {} } as Record<IntegrationSection, Record<string, string>>;
+    const nextPlaceholders = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {}, google_merchant: {} } as Record<IntegrationSection, Record<string, string>>;
 
     (Object.keys(SECTION_INFO) as IntegrationSection[]).forEach((section) => {
       const fetched = settings[section] ?? {};
@@ -425,7 +438,198 @@ export default function SettingsPage() {
           onRegisterWebhooks={registerPrintifyWebhooks}
         />
       )}
+
+      {activeTab === "google_merchant" && <MerchantGuide />}
     </div>
+  );
+}
+
+interface MerchantStatus {
+  checks: {
+    merchantId: boolean;
+    serviceAccountEmail: boolean;
+    privateKey: boolean;
+    webhookSecret: boolean;
+    productsTable: boolean;
+  };
+  productsRowCount: number | null;
+  ready: boolean;
+  webhookUrl: string;
+}
+
+const CHECK_LABELS: { key: keyof MerchantStatus["checks"]; label: string; hint: string }[] = [
+  { key: "merchantId", label: "Merchant ID saved", hint: "Step 1" },
+  { key: "serviceAccountEmail", label: "Service account email saved", hint: "Step 2" },
+  { key: "privateKey", label: "Private key saved", hint: "Step 2" },
+  { key: "webhookSecret", label: "Webhook secret saved", hint: "Step 3" },
+  { key: "productsTable", label: "products table exists in Supabase", hint: "Step 4" },
+];
+
+/**
+ * Setup walkthrough for the Merchant Center sync. Reads a readiness endpoint so
+ * the admin can see which steps are still outstanding rather than guessing.
+ */
+function MerchantGuide() {
+  const [status, setStatus] = useState<MerchantStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/merchant-status");
+      if (res.ok) setStatus(await res.json());
+    } catch {
+      setStatus(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const copyUrl = () => {
+    if (!status?.webhookUrl) return;
+    navigator.clipboard.writeText(status.webhookUrl).catch(() => {});
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)] shadow-sm p-6 space-y-6">
+      <div>
+        <h2 className="text-sm font-semibold text-[var(--text-primary)]">How this integration works</h2>
+        <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+          When a row in the Supabase <code className="font-mono">products</code> table is created, updated
+          or deleted, Supabase calls this site&apos;s webhook. The webhook maps the row onto Google&apos;s
+          apparel schema and pushes it to Merchant Center through the Content API, so listings stay in
+          step with the catalogue without any manual feed uploads.
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <span className="text-xs font-semibold text-[var(--text-secondary)]">Setup status</span>
+          <button
+            type="button"
+            onClick={load}
+            disabled={loading}
+            className="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
+          >
+            {loading ? "Checking..." : "Re-check"}
+          </button>
+        </div>
+
+        {status ? (
+          <ul className="space-y-2">
+            {CHECK_LABELS.map(({ key, label, hint }) => {
+              const ok = status.checks[key];
+              return (
+                <li key={key} className="flex items-center gap-2 text-xs">
+                  {ok
+                    ? <CheckCircle2 size={13} className="shrink-0 text-green-600 dark:text-green-400" />
+                    : <Circle size={13} className="shrink-0 text-[var(--text-muted)]" />}
+                  <span className={ok ? "text-[var(--text-secondary)]" : "text-[var(--text-muted)]"}>{label}</span>
+                  <span className="ml-auto text-[10px] uppercase tracking-wide text-[var(--text-muted)]">{hint}</span>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-xs text-[var(--text-muted)]">{loading ? "Checking..." : "Status unavailable."}</p>
+        )}
+
+        {status && status.checks.productsTable && (
+          <p className="text-xs text-[var(--text-muted)] mt-3 pt-3 border-t border-[var(--border)]">
+            {status.productsRowCount} row{status.productsRowCount === 1 ? "" : "s"} in the products table.
+            {status.productsRowCount === 0 && " Nothing will sync until it is populated."}
+          </p>
+        )}
+      </div>
+
+      <ol className="space-y-4">
+        <GuideStep n={1} title="Create the Merchant Center account">
+          Create an account at Google Merchant Center and verify your store domain. Copy the Merchant ID
+          shown in the top-right corner into the field above.
+        </GuideStep>
+
+        <GuideStep n={2} title="Create a service account">
+          In Google Cloud Console, enable the Content API for Shopping, create a service account, and
+          download its JSON key. Paste <code className="font-mono">client_email</code> and{" "}
+          <code className="font-mono">private_key</code> into the fields above. Then in Merchant Center,
+          under Settings, Users, add that service account email with Standard access or higher.
+        </GuideStep>
+
+        <GuideStep n={3} title="Set a webhook secret">
+          Generate one with <code className="font-mono">openssl rand -hex 32</code> and save it above.
+          The webhook rejects any request that does not present it, so the endpoint stays closed until
+          this is set.
+        </GuideStep>
+
+        <GuideStep n={4} title="Create the products table">
+          Run <code className="font-mono">supabase-products-merchant-sync.sql</code> in the Supabase SQL
+          editor. This store reads products live from Printify, so the table does not exist yet and the
+          webhook has nothing to watch until it does.
+        </GuideStep>
+
+        <GuideStep n={5} title="Point Supabase at the webhook">
+          <span className="block mb-2">
+            In Supabase, under Database, Webhooks, create a hook on <code className="font-mono">public.products</code>{" "}
+            for Insert, Update and Delete events, sending a POST request to this URL with an{" "}
+            <code className="font-mono">x-webhook-secret</code> header matching the secret above.
+          </span>
+          <span className="flex items-center gap-2 flex-wrap">
+            <code className="font-mono text-[11px] px-2 py-1 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)] break-all">
+              {status?.webhookUrl ?? "/api/webhooks/supabase-products"}
+            </code>
+            <button
+              type="button"
+              onClick={copyUrl}
+              className="text-[11px] font-semibold px-2 py-1 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            >
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </span>
+        </GuideStep>
+
+        <GuideStep n={6} title="Populate the table">
+          Rows do not appear on their own. Insert one row per size and colour variant, each sharing an{" "}
+          <code className="font-mono">item_group_id</code>, since Google treats every variant as its own
+          product. The SQL file includes a ready-made upsert statement.
+        </GuideStep>
+      </ol>
+
+      <div className="pt-4 border-t border-[var(--border)] space-y-2">
+        <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+          A successful sync means Google accepted the item, not that it is approved for serving. Review
+          disapprovals under Products, Diagnostics in Merchant Center; they can take up to a few days
+          to appear.
+        </p>
+        <a
+          href="https://merchants.google.com/"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--purple)] hover:underline"
+        >
+          Open Google Merchant Center
+          <ExternalLink size={11} />
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function GuideStep({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+  return (
+    <li className="flex gap-3">
+      <span className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-[var(--bg-tertiary)] text-[11px] font-semibold text-[var(--text-secondary)]">
+        {n}
+      </span>
+      <div className="min-w-0">
+        <h3 className="text-xs font-semibold text-[var(--text-primary)] mb-1">{title}</h3>
+        <div className="text-xs text-[var(--text-muted)] leading-relaxed">{children}</div>
+      </div>
+    </li>
   );
 }
 
