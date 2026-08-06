@@ -403,15 +403,15 @@ export default async function HomePage() {
                 return (
                   <Link key={cat.id} href={cat.href} className="group flex flex-col items-center gap-2.5">
                     <div
-                      className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full border border-zinc-200 bg-brand-50 group-hover:border-brand-300 group-hover:shadow-md transition-all duration-200"
+                      className="flex h-16 w-16 sm:h-24 sm:w-24 items-center justify-center rounded-full border border-zinc-200 bg-brand-50 group-hover:border-brand-300 group-hover:shadow-md transition-all duration-200"
                     >
                       <span
-                        className="inline-block h-12 w-12 sm:h-14 sm:w-14 text-brand-600 transition-transform duration-300 group-hover:scale-110 [&>svg]:h-full [&>svg]:w-full"
+                        className="inline-block h-9 w-9 sm:h-14 sm:w-14 text-brand-600 transition-transform duration-300 group-hover:scale-110 [&>svg]:h-full [&>svg]:w-full"
                         aria-hidden
                         dangerouslySetInnerHTML={{ __html: svg }}
                       />
                     </div>
-                    <span className="text-xs font-medium text-zinc-700 group-hover:text-brand-600 text-center leading-tight transition-colors">
+                    <span className="text-[11px] sm:text-xs font-medium text-zinc-700 group-hover:text-brand-600 text-center leading-tight transition-colors">
                       {cat.name}
                     </span>
                   </Link>
