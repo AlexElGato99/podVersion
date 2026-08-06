@@ -135,6 +135,17 @@
   animation: hero-blob-breathe 6s ease-in-out infinite;
 }
 
+/* Hide the scrollbar on horizontally-scrolling strips (product thumbnail
+   rail, mobile image carousel) while keeping them scrollable/swipeable.
+   Referenced by `scrollbar-hide` in ProductClient.tsx. */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Rendered CMS page content (src/app/(store)/[slug]/page.tsx) — the HTML
    comes from the Tiptap editor in Dashboard → Pages, styled here since no
    typography plugin is installed. Also reused for the live preview inside

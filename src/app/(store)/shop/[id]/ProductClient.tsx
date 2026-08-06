@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -229,6 +229,25 @@ export default function ProductClient({ product, productId, printifyShopId }: Pr
   const [wishlistBusy, setWishlistBusy] = useState(false);
   const [added, setAdded] = useState(false);
 
+  // Mobile carousel (Etsy-style full-bleed swipe gallery). Tracked separately
+  // from the desktop gallery's pinnedImage because the carousel is driven by
+  // native scroll position rather than by clicking a thumbnail.
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+
+  // Native passive listener rather than React's onScroll — scroll doesn't
+  // bubble, and the synthetic handler proved unreliable here.
+  useEffect(() => {
+    const el = carouselRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      if (!el.clientWidth) return;
+      setCarouselIndex(Math.round(el.scrollLeft / el.clientWidth));
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [galleryImages.length]);
+
   const activeGalleryIndex = useMemo(() => {
     if (!galleryImages.length) return -1;
     const idx = galleryImages.indexOf(displayImage);
@@ -330,9 +349,63 @@ export default function ProductClient({ product, productId, printifyShopId }: Pr
               <span className="truncate max-w-[220px]">{displayName}</span>
         </nav>
 
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 lg:items-stretch xl:gap-16">
-          {/* Image gallery */}
-          <div className="flex flex-col gap-3 lg:h-full">
+        <div className="grid grid-cols-1 gap-8 lg:gap-12 lg:grid-cols-2 lg:items-stretch xl:gap-16">
+          {/* ── Mobile gallery: full-bleed, edge-to-edge swipe carousel (Etsy-style).
+              Negative margins cancel the page's px-4/sm:px-6 padding so the image
+              runs the full width of the screen, as it does on Etsy's app. ── */}
+          <div className="lg:hidden -mx-4 sm:-mx-6">
+            <div className="relative">
+              <div
+                ref={carouselRef}
+                className="flex snap-x snap-mandatory overflow-x-auto scrollbar-hide"
+              >
+                {(galleryImages.length ? galleryImages : [displayImage || "/placeholder-product.jpg"]).map((src, i) => (
+                  <div key={`${src}-${i}`} className="relative w-full shrink-0 snap-center aspect-square bg-zinc-100">
+                    <Image
+                      src={src || "/placeholder-product.jpg"}
+                      alt={`${displayName}${selectedColor ? ` in ${selectedColor}` : ""} — image ${i + 1}`}
+                      fill
+                      sizes="100vw"
+                      className="object-cover"
+                      priority={i === 0}
+                      unoptimized
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={toggleWishlist}
+                disabled={wishlistBusy}
+                aria-label={wishlist ? "Remove from wishlist" : "Add to wishlist"}
+                className={cn(
+                  "absolute top-3 right-3 h-10 w-10 flex items-center justify-center rounded-full shadow-md backdrop-blur-sm transition-all",
+                  wishlist
+                    ? "bg-red-50 text-red-500 border border-red-200"
+                    : "bg-white/90 text-zinc-500 border border-zinc-200"
+                )}
+              >
+                <Heart className={cn("h-5 w-5", wishlist && "fill-red-500")} />
+              </button>
+
+              {galleryImages.length > 1 && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-black/45 px-2.5 py-1.5 backdrop-blur-sm">
+                  {galleryImages.slice(0, 10).map((_, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        "block rounded-full transition-all",
+                        i === carouselIndex ? "h-1.5 w-4 bg-white" : "h-1.5 w-1.5 bg-white/55"
+                      )}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Desktop gallery: main image + thumbnail strip ── */}
+          <div className="hidden lg:flex flex-col gap-3 lg:h-full">
             {/* Main image */}
             <div className="relative aspect-square overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-100">
               <Image
@@ -790,6 +863,15 @@ function ProductInfoTabs({
 }) {
   const [active, setActive] = useState<TabId>("Description");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  // Mobile shows these as Etsy-style collapsible rows rather than a tab strip
+  // (5 tabs don't fit on one line at 375px). First section starts expanded.
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set());
+  const toggleSection = (tab: string) =>
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(tab)) next.delete(tab); else next.add(tab);
+      return next;
+    });
 
   const sections = useMemo(() => parseDescriptionSections(description), [description]);
   const sizeGuideHtml = useMemo(() => {
@@ -831,9 +913,29 @@ function ProductInfoTabs({
     )}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
 
-      {/* Tab strip */}
+      {/* ── Mobile: Etsy-style collapsible sections ── */}
+      <div className="lg:hidden divide-y divide-zinc-200 border-y border-zinc-200">
+        {visibleTabs.map((tab) => {
+          const open = openSections.has(tab);
+          return (
+            <div key={tab}>
+              <button
+                onClick={() => toggleSection(tab)}
+                aria-expanded={open}
+                className="w-full flex items-center justify-between gap-4 py-3.5 text-left"
+              >
+                <span className="text-sm font-semibold text-zinc-800">{tab}</span>
+                <ChevronDown className={cn("h-4 w-4 shrink-0 text-zinc-400 transition-transform", open && "rotate-180")} />
+              </button>
+              {open && <div className="pb-4">{renderPanel(tab)}</div>}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Desktop: tab strip ── */}
       <div className={cn(
-        "flex flex-wrap border-b border-zinc-200",
+        "hidden lg:flex flex-wrap border-b border-zinc-200",
         compact ? "gap-1 mb-4" : "gap-2 mb-8"
       )}>
         {visibleTabs.map((tab) => (
@@ -853,9 +955,19 @@ function ProductInfoTabs({
         ))}
       </div>
 
-      {/* Tab panels */}
-      <div className={cn("w-full", compact ? "max-w-none" : "max-w-2xl") }>
-      {resolvedActive === "Description" && (
+      {/* Desktop tab panels */}
+      <div className={cn("hidden lg:block w-full", compact ? "max-w-none" : "max-w-2xl") }>
+        {renderPanel(resolvedActive)}
+      </div>
+    </section>
+  );
+
+  /* Panel body for a given section — shared by the mobile accordion and the
+     desktop tab strip so both stay in sync. */
+  function renderPanel(tab: string) {
+    return (
+      <>
+      {tab === "Description" && (
         <div className={cn(compact ? "max-w-none" : "max-w-3xl")}>
           <p className={cn("text-zinc-600 leading-relaxed whitespace-pre-line", compact ? "text-xs" : "text-sm")}>
             {sections.intro}
@@ -868,7 +980,7 @@ function ProductInfoTabs({
         </div>
       )}
 
-      {resolvedActive === "Features" && (
+      {tab === "Features" && (
         <ul className={cn(compact ? "max-w-none space-y-2" : "max-w-2xl space-y-3")}>
           {sections.features.map((feat, i) => (
             <li key={i} className="flex items-start gap-3">
@@ -881,7 +993,7 @@ function ProductInfoTabs({
         </ul>
       )}
 
-      {resolvedActive === "Care Instructions" && (
+      {tab === "Care Instructions" && (
         <ul className={cn(compact ? "max-w-none space-y-2" : "max-w-2xl space-y-3")}>
           {sections.care.map((item, i) => (
             <li key={i} className="flex items-start gap-3">
@@ -894,7 +1006,7 @@ function ProductInfoTabs({
         </ul>
       )}
 
-      {resolvedActive === "Size Guide" && sections.table && (
+      {tab === "Size Guide" && sections.table && (
         <div className={cn(compact ? "max-w-none text-xs" : "max-w-3xl text-sm", "overflow-x-auto text-zinc-700")}>
           <style>{`
             .size-guide-table {
@@ -935,7 +1047,7 @@ function ProductInfoTabs({
         </div>
       )}
 
-      {resolvedActive === "FAQ" && (
+      {tab === "FAQ" && (
         <div className={cn(compact ? "max-w-none" : "max-w-2xl")}>
           <h2 className={cn("font-bold text-zinc-900", compact ? "text-sm mb-3" : "text-base mb-5")}>
             Frequently asked questions about {productName}
@@ -962,7 +1074,7 @@ function ProductInfoTabs({
           </div>
         </div>
       )}
-      </div>
-    </section>
-  );
+      </>
+    );
+  }
 }

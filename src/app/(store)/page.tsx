@@ -94,32 +94,31 @@ async function getCategorySettings(): Promise<CategorySettings> {
 // Iconify set (Phosphor, Tabler, Lucide) has the clearest match — verified
 // against api.iconify.design directly. Keyword table checked
 // most-specific-first, same pattern as inferCategory() above.
-const CATEGORY_STYLE_MAP: { test: RegExp; icon: string; bg: string; accent: string }[] = [
-  { test: /women|woman|ladies|dress/i, icon: "ph:dress", bg: "bg-rose-50", accent: "text-rose-600" },
-  { test: /\bmen\b|\bman\b|guys/i, icon: "ph:t-shirt", bg: "bg-blue-50", accent: "text-blue-600" },
-  { test: /kid|youth|child|baby|toddler/i, icon: "lucide:baby", bg: "bg-amber-50", accent: "text-amber-600" },
-  { test: /mug|cup|tumbler|drinkware/i, icon: "tabler:mug", bg: "bg-amber-50", accent: "text-amber-600" },
-  { test: /sticker|decal/i, icon: "lucide:sticker", bg: "bg-green-50", accent: "text-green-600" },
-  { test: /canvas|poster|wall art|wall decor|art print/i, icon: "lucide:image", bg: "bg-rose-50", accent: "text-rose-600" },
-  { test: /cap|hat|beanie|snapback|trucker/i, icon: "ph:baseball-cap", bg: "bg-purple-50", accent: "text-purple-600" },
-  { test: /hoodie|sweatshirt|pullover|fleece/i, icon: "ph:hoodie", bg: "bg-blue-50", accent: "text-blue-600" },
-  { test: /shoe|footwear|sneaker/i, icon: "lucide:footprints", bg: "bg-zinc-50", accent: "text-zinc-600" },
-  { test: /jewel|necklace/i, icon: "mdi:necklace", bg: "bg-purple-50", accent: "text-purple-600" },
-  { test: /watch/i, icon: "lucide:watch", bg: "bg-purple-50", accent: "text-purple-600" },
-  { test: /glass|eyewear|sunglasses/i, icon: "ph:sunglasses", bg: "bg-zinc-50", accent: "text-zinc-600" },
-  { test: /phone|case/i, icon: "lucide:smartphone", bg: "bg-zinc-50", accent: "text-zinc-600" },
-  { test: /bag|tote|backpack/i, icon: "lucide:shopping-bag", bg: "bg-zinc-50", accent: "text-zinc-600" },
-  { test: /accessor/i, icon: "ph:sunglasses", bg: "bg-purple-50", accent: "text-purple-600" },
-  { test: /home|living|decor|kitchen|furniture/i, icon: "lucide:sofa", bg: "bg-emerald-50", accent: "text-emerald-600" },
-  { test: /t-shirt|tee|shirt|apparel|clothing|jersey|polo/i, icon: "lucide:shirt", bg: "bg-orange-50", accent: "text-orange-600" },
+const CATEGORY_STYLE_MAP: { test: RegExp; icon: string }[] = [
+  { test: /women|woman|ladies|dress/i, icon: "ph:dress" },
+  { test: /\bmen\b|\bman\b|guys/i, icon: "ph:t-shirt" },
+  { test: /kid|youth|child|baby|toddler/i, icon: "lucide:baby" },
+  { test: /mug|cup|tumbler|drinkware/i, icon: "tabler:mug" },
+  { test: /sticker|decal/i, icon: "lucide:sticker" },
+  { test: /canvas|poster|wall art|wall decor|art print/i, icon: "lucide:image" },
+  { test: /cap|hat|beanie|snapback|trucker/i, icon: "ph:baseball-cap" },
+  { test: /hoodie|sweatshirt|pullover|fleece/i, icon: "ph:hoodie" },
+  { test: /shoe|footwear|sneaker/i, icon: "lucide:footprints" },
+  { test: /jewel|necklace/i, icon: "mdi:necklace" },
+  { test: /watch/i, icon: "lucide:watch" },
+  { test: /glass|eyewear|sunglasses/i, icon: "ph:sunglasses" },
+  { test: /phone|case/i, icon: "lucide:smartphone" },
+  { test: /bag|tote|backpack/i, icon: "lucide:shopping-bag" },
+  { test: /accessor/i, icon: "ph:sunglasses" },
+  { test: /home|living|decor|kitchen|furniture/i, icon: "lucide:sofa" },
+  { test: /t-shirt|tee|shirt|apparel|clothing|jersey|polo/i, icon: "lucide:shirt" },
 ];
-const DEFAULT_CATEGORY_STYLE = { icon: "lucide:shopping-bag", bg: "bg-zinc-50", accent: "text-zinc-600" };
+const DEFAULT_CATEGORY_STYLE = { icon: "lucide:shopping-bag" };
 
 function getCategoryStyle(name: string, iconOverride?: string) {
   const matched = CATEGORY_STYLE_MAP.find((c) => c.test.test(name)) ?? DEFAULT_CATEGORY_STYLE;
-  // An admin-set icon overrides which icon is shown, but colors still come
-  // from the keyword match (or the neutral default) — keeps the palette
-  // consistent without needing a color picker in the dashboard.
+  // Only the icon varies per category — every tile shares one warm Etsy-style
+  // palette (brand-50 circle, brand-600 icon), applied in the render below.
   return iconOverride ? { ...matched, icon: iconOverride } : matched;
 }
 
@@ -400,14 +399,14 @@ export default async function HomePage() {
           {categoryData.categories.length > 0 && (
             <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 lg:grid-cols-7">
               {categoryData.categories.map((cat, i) => {
-                const { bg, accent, svg } = categoryIcons[i];
+                const { svg } = categoryIcons[i];
                 return (
                   <Link key={cat.id} href={cat.href} className="group flex flex-col items-center gap-2.5">
                     <div
-                      className={`flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full border border-zinc-200 group-hover:border-brand-300 group-hover:shadow-md transition-all duration-200 ${bg}`}
+                      className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full border border-zinc-200 bg-brand-50 group-hover:border-brand-300 group-hover:shadow-md transition-all duration-200"
                     >
                       <span
-                        className={`inline-block h-12 w-12 sm:h-14 sm:w-14 transition-transform duration-300 group-hover:scale-110 [&>svg]:h-full [&>svg]:w-full ${accent}`}
+                        className="inline-block h-12 w-12 sm:h-14 sm:w-14 text-brand-600 transition-transform duration-300 group-hover:scale-110 [&>svg]:h-full [&>svg]:w-full"
                         aria-hidden
                         dangerouslySetInnerHTML={{ __html: svg }}
                       />
@@ -474,9 +473,15 @@ export default async function HomePage() {
                 </Link>
               </div>
 
+              {/* Column count is responsive: a single full-width card on phones,
+                  2 on large phones, 3 on tablets, and the admin-configured
+                  `max_products` value only from `lg` up. Setting
+                  gridTemplateColumns inline for every breakpoint (as this did
+                  before) forced that desktop number onto phones too — 6 columns
+                  on a 375px screen renders ~55px-wide product cards. */}
               <div
-                className="grid gap-x-4 gap-y-8"
-                style={{ gridTemplateColumns: `repeat(${sectionCols}, minmax(0, 1fr))` }}
+                className="grid gap-x-4 gap-y-8 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:[grid-template-columns:repeat(var(--section-cols),minmax(0,1fr))]"
+                style={{ "--section-cols": sectionCols } as React.CSSProperties}
               >
                 {catProducts.map((product, i) => (
                   <ProductCard

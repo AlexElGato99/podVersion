@@ -40,7 +40,7 @@ export default function Footer() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
           {/* Brand */}
-          <div className="col-span-2 md:col-span-1">
+          <div className="col-span-2 md:col-span-1 text-center md:text-left">
             <Link href="/" className="inline-flex items-center mb-4" aria-label="Veliova home">
               <span className="text-xl font-black tracking-tight">
                 <span className="text-brand-600">Veli</span>
@@ -50,7 +50,7 @@ export default function Footer() {
             <p className="text-sm text-zinc-500 leading-relaxed mb-6">
               Premium print-on-demand products crafted with care and shipped worldwide.
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center md:justify-start gap-3">
               {socials.map(({ icon: Icon, label, href }) => (
                 <a
                   key={label}
@@ -68,7 +68,7 @@ export default function Footer() {
 
           {/* Links */}
           {Object.entries(footerLinks).map(([category, links]) => (
-            <div key={category}>
+            <div key={category} className="text-center md:text-left">
               <h3 className="mb-4 text-sm font-semibold text-zinc-900">
                 {category}
               </h3>

@@ -109,7 +109,7 @@ export default function Navbar() {
     >
       {/* ── Main row ── */}
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
-        <div className="flex h-[68px] items-center gap-3">
+        <div className="flex h-[68px] items-center gap-2 sm:gap-3">
 
           {/* 1. Logo */}
           <Link href="/" className="shrink-0" aria-label="Veliova home">
@@ -160,19 +160,21 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* 3. Search bar — centered, takes all available space */}
-          <form onSubmit={handleSearch} className="hidden sm:flex flex-1 justify-center">
+          {/* 3. Search bar — centered, takes all available space.
+              Shown on every breakpoint: on mobile it sits between the logo and
+              the hamburger, so it shrinks rather than disappearing. */}
+          <form onSubmit={handleSearch} className="flex flex-1 justify-center min-w-0">
             <div className="relative w-full max-w-xl">
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search for anything"
-                className="w-full h-[44px] rounded-full border-2 border-zinc-800 bg-white pl-5 pr-14 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-brand-600 focus:outline-none transition-colors"
+                className="w-full h-10 sm:h-[44px] rounded-full border-2 border-zinc-800 bg-white pl-4 sm:pl-5 pr-11 sm:pr-14 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-brand-600 focus:outline-none transition-colors"
               />
               <button
                 type="submit"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-[36px] w-[36px] flex items-center justify-center rounded-full bg-zinc-800 text-white hover:bg-brand-600 transition-colors"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 sm:h-[36px] sm:w-[36px] flex items-center justify-center rounded-full bg-zinc-800 text-white hover:bg-brand-600 transition-colors"
                 aria-label="Search"
               >
                 <Search className="h-3.5 w-3.5" />
@@ -203,8 +205,8 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Mobile: cart + hamburger */}
-          <div className="flex sm:hidden items-center gap-1 ml-auto">
+          {/* Mobile: cart + hamburger — hamburger stays the rightmost control */}
+          <div className="flex sm:hidden items-center gap-0.5 shrink-0">
             <Link href="/cart" className="relative flex items-center justify-center w-10 h-10 rounded-lg text-zinc-600 hover:bg-zinc-100 transition-colors">
               <ShoppingCart className="h-5 w-5" />
               {totalItems > 0 && (
@@ -371,22 +373,8 @@ export default function Navbar() {
 
       {/* ── Mobile drawer ── */}
       {mobileOpen && (
-        <div className="sm:hidden border-t border-zinc-100 bg-white px-4 pt-3 pb-5 shadow-lg">
-          <form onSubmit={handleSearch} className="mb-4">
-            <div className="relative">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search for anything"
-                className="w-full h-10 rounded-full border-2 border-zinc-800 pl-4 pr-10 text-sm focus:outline-none"
-              />
-              <button type="submit" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full bg-zinc-800 text-white">
-                <Search className="h-3 w-3" />
-              </button>
-            </div>
-          </form>
-
+        <div className="sm:hidden border-t border-zinc-100 bg-white px-4 pt-3 pb-5 shadow-lg max-h-[calc(100vh-68px)] overflow-y-auto">
+          {/* Search lives in the header row on mobile now, so it's not repeated here. */}
           <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 mb-2 px-1">Categories</p>
           <div className="grid grid-cols-3 gap-2 mb-4">
             {categories.map((cat) => (

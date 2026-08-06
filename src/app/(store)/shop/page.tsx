@@ -64,14 +64,17 @@ export default function ShopPage() {
   return (
     <div className="pt-20 sm:pt-32 pb-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="py-10">
-          <h1 className="text-4xl font-bold tracking-tight text-zinc-900">All Products</h1>
-          <p className="mt-2 text-zinc-500">Discover our full collection of premium print-on-demand products.</p>
+        <div className="py-6 sm:py-10">
+          <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-zinc-900">All Products</h1>
+          <p className="mt-2 text-sm sm:text-base text-zinc-500">Discover our full collection of premium print-on-demand products.</p>
         </div>
         <Suspense fallback={
-          <div className="flex gap-8">
-            <div className="w-60 shrink-0 h-96 rounded-2xl bg-zinc-100 animate-pulse" />
-            <div className="flex-1 grid grid-cols-3 gap-4">
+          <div className="flex gap-6 lg:gap-8">
+            {/* Filter sidebar is a drawer on mobile, so the skeleton only
+                reserves space for it from lg up — otherwise it ate 240px of
+                a 375px screen. */}
+            <div className="hidden lg:block w-60 shrink-0 h-96 rounded-2xl bg-zinc-100 animate-pulse" />
+            <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-4">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="aspect-square rounded-2xl bg-zinc-100 animate-pulse" />
               ))}
