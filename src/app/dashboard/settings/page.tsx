@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Eye, EyeOff, KeyRound, ShieldCheck, CreditCard, Package, Mail,
   BarChart3, Save, Loader2, Layers, Zap, CheckCircle2, XCircle,
-  ShoppingBag, Circle, ExternalLink, Share2,
+  ShoppingBag, Circle, ExternalLink, Share2, Facebook,
 } from "lucide-react";
 
 type FieldKey = "current" | "next" | "confirm";
-type TabId = "security" | "payments" | "printful" | "printify" | "general" | "email" | "analytics" | "google_merchant" | "pinterest";
+type TabId = "security" | "payments" | "printful" | "printify" | "general" | "email" | "analytics" | "google_merchant" | "pinterest" | "facebook";
 type IntegrationSection = Exclude<TabId, "security">;
 
 type Status =
@@ -40,6 +40,7 @@ const TABS: { id: TabId; label: string; icon: typeof ShieldCheck }[] = [
   { id: "analytics",label: "Analytics", icon: BarChart3 },
   { id: "google_merchant", label: "Google Merchant", icon: ShoppingBag },
   { id: "pinterest", label: "Pinterest", icon: Share2 },
+  { id: "facebook", label: "Facebook Shop", icon: Facebook },
 ];
 
 const SECTION_INFO: Record<IntegrationSection, { title: string; description: string; fields: FieldConfig[] }> = {
@@ -139,9 +140,18 @@ const SECTION_INFO: Record<IntegrationSection, { title: string; description: str
       { key: "pinterest_verify_content", label: "File contents (optional)", helper: "Open the file Pinterest gives you and paste its contents. Leave blank to serve the filename instead, which is usually sufficient." },
     ],
   },
+  facebook: {
+    title: "Facebook Merchant Center",
+    description: "Publish products to Facebook Shop and dynamic ads through an automated product catalog feed.",
+    fields: [
+      { key: "facebook_catalog_id", label: "Catalog ID", helper: "From Facebook Business Manager → Catalogs. The numeric ID of your product catalog.", placeholder: "123456789" },
+      { key: "facebook_access_token", label: "Access Token", secret: true, helper: "From Meta for Developers → Your app → Settings → Basic. Needs catalog:manage and catalog:read permissions." },
+      { key: "facebook_business_account_id", label: "Business Account ID (optional)", helper: "Used for multi-account setup. If blank, uses the default account associated with the access token." },
+    ],
+  },
 };
 
-const EMPTY_SECTION_MAP = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {}, google_merchant: {}, pinterest: {} } as Record<IntegrationSection, Record<string, string>>;
+const EMPTY_SECTION_MAP = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {}, google_merchant: {}, pinterest: {}, facebook: {} } as Record<IntegrationSection, Record<string, string>>;
 
 const RULES = [
   { label: "At least 8 characters", test: (v: string) => v.length >= 8 },
@@ -171,12 +181,13 @@ export default function SettingsPage() {
     analytics: { kind: "idle" },
     google_merchant: { kind: "idle" },
     pinterest: { kind: "idle" },
+    facebook: { kind: "idle" },
   });
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
 
   const applySettings = useCallback((settings: Partial<Record<IntegrationSection, Record<string, string>>>) => {
-    const nextValues = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {}, google_merchant: {}, pinterest: {} } as Record<IntegrationSection, Record<string, string>>;
-    const nextPlaceholders = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {}, google_merchant: {}, pinterest: {} } as Record<IntegrationSection, Record<string, string>>;
+    const nextValues = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {}, google_merchant: {}, pinterest: {}, facebook: {} } as Record<IntegrationSection, Record<string, string>>;
+    const nextPlaceholders = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {}, google_merchant: {}, pinterest: {}, facebook: {} } as Record<IntegrationSection, Record<string, string>>;
 
     (Object.keys(SECTION_INFO) as IntegrationSection[]).forEach((section) => {
       const fetched = settings[section] ?? {};
@@ -467,6 +478,175 @@ export default function SettingsPage() {
 
       {activeTab === "google_merchant" && <MerchantGuide />}
       {activeTab === "pinterest" && <PinterestGuide />}
+      {activeTab === "facebook" && <FacebookGuide />}
+    </div>
+  );
+}
+
+interface FacebookStatus {
+  feedUrl: string;
+  itemCount: number;
+  designCount: number;
+  variantCount: number;
+  inStock: number;
+  outOfStock: number;
+  lastUpdated: string;
+  sample: Array<{ id: string; title: string; price: string; availability: string }>;
+}
+
+/**
+ * Facebook Merchant Center integration. Products are published via a hosted
+ * XML feed that Facebook ingests daily, similar to Pinterest.
+ */
+function FacebookGuide() {
+  const [status, setStatus] = useState<FacebookStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/facebook-status");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Could not read the feed.");
+      setStatus(json);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not read the feed.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const copyUrl = () => {
+    if (!status?.feedUrl) return;
+    navigator.clipboard.writeText(status.feedUrl).catch(() => {});
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)] shadow-sm p-6 space-y-6">
+      <div>
+        <h2 className="text-sm font-semibold text-[var(--text-primary)]">How this integration works</h2>
+        <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+          Facebook Merchant Center publishes products via an XML feed hosted on your site. Register the URL
+          below in your Facebook Business Manager catalog, and Facebook fetches it daily to create and update
+          products. Your items will then be available for dynamic ads, the Facebook shop, Instagram shopping,
+          and product recommendations.
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs font-semibold text-[var(--text-secondary)]">Your feed</span>
+          <button
+            type="button"
+            onClick={load}
+            disabled={loading}
+            className="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
+          >
+            {loading ? "Checking..." : "Re-check"}
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <code className="font-mono text-[11px] px-2 py-1 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)] break-all">
+            {status?.feedUrl ?? "/facebook-feed.xml"}
+          </code>
+          <button
+            type="button"
+            onClick={copyUrl}
+            className="text-[11px] font-semibold px-2 py-1 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+          {status?.feedUrl && (
+            <a
+              href={status.feedUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--purple)] hover:underline"
+            >
+              Open <ExternalLink size={10} />
+            </a>
+          )}
+        </div>
+
+        {error && (
+          <div className="text-xs font-medium px-3 py-2 rounded-lg bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+            {error}
+          </div>
+        )}
+
+        {status && (
+          <div className="grid grid-cols-4 gap-3 pt-1">
+            <Stat label="Products" value={status.itemCount} />
+            <Stat label="Designs" value={status.designCount} />
+            <Stat label="In Stock" value={status.inStock} />
+            <Stat label="Out of Stock" value={status.outOfStock} />
+          </div>
+        )}
+
+        {status && (
+          <p className="text-[11px] text-[var(--text-muted)] leading-relaxed pt-1 border-t border-[var(--border)]">
+            All product variants are included in the Facebook feed (unlike Pinterest which deduplicates by design
+            and color). This gives Facebook the most detailed information for accurate product matching in ads.
+          </p>
+        )}
+      </div>
+
+      <ol className="space-y-4">
+        <GuideStep n={1} title="Create a Facebook Business Account">
+          If you don&apos;t have one, create a business account at{" "}
+          <code className="font-mono">business.facebook.com</code>. This is required for Merchant Center.
+        </GuideStep>
+
+        <GuideStep n={2} title="Create a Product Catalog">
+          In Facebook Business Manager, go to Catalogs and create a new catalog for your products. Copy the
+          Catalog ID and save it in the settings above.
+        </GuideStep>
+
+        <GuideStep n={3} title="Generate an Access Token">
+          In Meta for Developers, create an app or use an existing one. Generate an access token with{" "}
+          <code className="font-mono">catalog:manage</code> and <code className="font-mono">catalog:read</code>{" "}
+          permissions. Save it in the settings above.
+        </GuideStep>
+
+        <GuideStep n={4} title="Add the feed as a data source">
+          In your Facebook Business Manager catalog, go to Data sources and add an XML data source by pasting
+          the feed URL above. Set the language to English and let Facebook validate the feed.
+        </GuideStep>
+
+        <GuideStep n={5} title="Wait for ingestion and activation">
+          Facebook will fetch and validate the feed. Once validated, you can create dynamic product ads and add
+          products to your Facebook shop. The feed is re-fetched daily automatically.
+        </GuideStep>
+
+        <GuideStep n={6} title="Link your website domain">
+          In Catalog Settings, verify your website domain. This lets Facebook match your products across channels
+          and improves attribution accuracy for conversions.
+        </GuideStep>
+      </ol>
+
+      <div className="pt-4 border-t border-[var(--border)] space-y-2">
+        <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+          After the initial setup, all products sync automatically whenever they change in your Printify or
+          Printful catalog. No manual uploads needed.
+        </p>
+        <a
+          href="https://www.facebook.com/business/help/120325701656306?id=725943027432627"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--purple)] hover:underline"
+        >
+          Facebook Merchant Center guide
+          <ExternalLink size={11} />
+        </a>
+      </div>
     </div>
   );
 }
