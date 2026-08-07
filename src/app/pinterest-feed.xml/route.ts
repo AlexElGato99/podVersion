@@ -30,6 +30,14 @@ function renderItem(item: PinterestFeedItem): string {
     `      <g:condition>new</g:condition>`,
     `      <g:brand>Veliova</g:brand>`,
   ];
+  // Sent explicitly rather than left for Pinterest to infer from product_type.
+  // Inference fails silently on a subset of items and is reported as
+  // "Some google_product_category values are missing".
+  if (item.google_product_category) {
+    parts.push(
+      `      <g:google_product_category>${escapeXml(item.google_product_category)}</g:google_product_category>`
+    );
+  }
   if (item.product_type) {
     parts.push(`      <g:product_type>${escapeXml(item.product_type)}</g:product_type>`);
   }

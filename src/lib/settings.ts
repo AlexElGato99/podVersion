@@ -47,6 +47,12 @@ const ENV_FALLBACKS: Record<SettingsSection, Record<string, string | undefined>>
   general: {
     /** "printful" | "printify" | "both" */
     pod_provider: process.env.POD_PROVIDER ?? "both",
+    /**
+     * Arbitrary tags injected into <head> on every page — verification meta
+     * tags, analytics snippets, and similar. Rendered server-side so crawlers
+     * see them in the initial HTML.
+     */
+    custom_head_html: process.env.CUSTOM_HEAD_HTML,
   },
   email: {
     email_api_key: process.env.EMAIL_API_KEY,

@@ -26,6 +26,13 @@ export interface PinterestFeedItem {
   price: string;
   availability: "in stock" | "out of stock" | "preorder";
   item_group_id: string;
+  /**
+   * Exact value from Google's Product Taxonomy. Pinterest will try to infer
+   * this from `product_type` when it is absent, and warns for every item it
+   * cannot map, so it is always sent explicitly.
+   */
+  google_product_category?: string;
+  /** Merchant's own categorisation, shown alongside the GPC value. */
   product_type?: string;
 }
 
@@ -83,6 +90,7 @@ export async function buildPinterestFeed(siteUrl: string): Promise<PinterestFeed
       price: `${price.toFixed(2)} ${row.currency || "USD"}`,
       availability: (row.stock ?? 0) > 0 ? "in stock" : "out of stock",
       item_group_id: itemGroupId,
+      google_product_category: row.google_product_category ?? undefined,
       product_type: row.google_product_category ?? undefined,
       _price: price,
     });
