@@ -88,12 +88,43 @@ export async function createPayPalOrder(params: {
 }
 
 /**
+ * Read an order without modifying it, so its amount can be checked before any
+ * money moves.
+ */
+export async function getPayPalOrder(orderId: string): Promise<{
+  status: string;
+  currency: string;
+  amount: number;
+}> {
+  const { token, base } = await getAccessToken();
+  const res = await fetch(`${base}/v2/checkout/orders/${orderId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(`PayPal get order error ${res.status}: ${JSON.stringify(data)}`);
+  }
+
+  const unit = data.purchase_units?.[0]?.amount;
+  return {
+    status: data.status,
+    currency: unit?.currency_code ?? "USD",
+    amount: Number.parseFloat(unit?.value ?? "0"),
+  };
+}
+
+/**
  * Capture a previously-approved PayPal order. Returns "COMPLETED" on success.
  */
 export async function capturePayPalOrder(orderId: string): Promise<{
   status: string;
   payerEmail?: string;
   captureId?: string;
+  /** Amount actually taken from the payer, for reconciliation. */
+  capturedAmount?: number;
+  capturedCurrency?: string;
 }> {
   const { token, base } = await getAccessToken();
   const res = await fetch(`${base}/v2/checkout/orders/${orderId}/capture`, {
@@ -115,5 +146,7 @@ export async function capturePayPalOrder(orderId: string): Promise<{
     status: data.status,
     payerEmail: data.payer?.email_address,
     captureId: capture?.id,
+    capturedAmount: capture?.amount?.value ? Number.parseFloat(capture.amount.value) : undefined,
+    capturedCurrency: capture?.amount?.currency_code,
   };
 }

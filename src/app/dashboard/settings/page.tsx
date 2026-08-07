@@ -26,6 +26,8 @@ interface FieldConfig {
   placeholder?: string;
   /** Renders as a <select> instead of a text input. */
   options?: string[];
+  /** Renders as a multi-line textarea, for pasted HTML snippets. */
+  multiline?: boolean;
 }
 
 const TABS: { id: TabId; label: string; icon: typeof ShieldCheck }[] = [
@@ -50,6 +52,13 @@ const SECTION_INFO: Record<IntegrationSection, { title: string; description: str
         label: "Active provider",
         helper: "Printful, Printify, or Both.",
         options: ["printful", "printify", "both"],
+      },
+      {
+        key: "custom_head_html",
+        label: "Custom head tags",
+        multiline: true,
+        helper: "Paste verification or analytics tags exactly as the provider gives them. They are added to the head of every page and rendered on the server, so crawlers that do not run JavaScript can still read them. Only meta, link and script tags are used; anything else is ignored.",
+        placeholder: '<meta name="example-site-verification" content="abc123" />',
       },
     ],
   },
@@ -1189,7 +1198,16 @@ function IntegrationField({
     <label className="block space-y-1.5">
       <span className="text-xs font-medium text-[var(--text-secondary)]">{field.label}</span>
 
-      {field.options ? (
+      {field.multiline ? (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          rows={6}
+          spellCheck={false}
+          placeholder={field.placeholder}
+          className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 font-mono text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y"
+        />
+      ) : field.options ? (
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}

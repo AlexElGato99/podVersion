@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
+import CustomHeadTags from "@/components/CustomHeadTags";
+import { getSettingsSection } from "@/lib/settings";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -140,17 +142,23 @@ const websiteSchema = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Verification and analytics tags pasted by an admin in Dashboard, Settings,
+  // Provider. Read here rather than in a client component so crawlers that do
+  // not run JavaScript still see them.
+  const general = await getSettingsSection("general").catch(() => ({} as Record<string, string>));
+
   return (
     <html lang="en" className={inter.variable}>
       <head>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(storeSchema) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }} />
+        <CustomHeadTags html={general.custom_head_html} />
       </head>
       <body suppressHydrationWarning>{children}</body>
     </html>

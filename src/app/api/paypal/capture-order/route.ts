@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { getProduct, createPrintfulOrder, type PrintfulProductDetail } from "@/lib/printful";
 import { getPrintifyProduct, createPrintifyOrder } from "@/lib/printify";
-import { capturePayPalOrder } from "@/lib/paypal";
+import { capturePayPalOrder, getPayPalOrder } from "@/lib/paypal";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 
 const supabaseAdmin = createServiceClient(
@@ -62,10 +62,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Incomplete shipping address" }, { status: 400 });
     }
 
-    // 1. Capture the PayPal payment
-    const capture = await capturePayPalOrder(paypalOrderId);
-    if (capture.status !== "COMPLETED") {
-      return NextResponse.json({ error: "Payment not completed" }, { status: 402 });
+    // 1. Refuse to process the same PayPal order twice. A retried request, a
+    // double-click, or a refreshed tab would otherwise place a second
+    // production order against a single payment.
+    const { data: existing } = await supabaseAdmin
+      .from("orders")
+      .select("id, provider, status")
+      .eq("paypal_order_id", paypalOrderId);
+
+    if (existing && existing.length > 0) {
+      return NextResponse.json({
+        success: true,
+        alreadyProcessed: true,
+        orders: existing.map((o) => ({
+          orderId: o.id,
+          provider: o.provider,
+          providerOrderId: null,
+          status: o.status,
+          fulfillmentError: null,
+        })),
+      });
     }
 
     // 2. Re-validate prices from each item's own provider — never trust client-supplied prices.
@@ -134,9 +150,47 @@ export async function POST(req: Request) {
     const subtotal = orderItems.reduce((s, i) => s + i.unitAmount * i.quantity, 0);
     const shippingAmount = subtotal > 50 ? 0 : 4.99;
     const taxAmount = Math.round(subtotal * 0.08 * 100) / 100;
-    const total = subtotal + shippingAmount + taxAmount;
+    const total = Math.round((subtotal + shippingAmount + taxAmount) * 100) / 100;
 
-    // 3. Group items by fulfillment provider — a cart spanning both providers
+    // 3. Confirm the approved PayPal order is actually for these goods before
+    // taking any money.
+    //
+    // The item list arrives in the request body, and the PayPal order amount is
+    // fixed server-side when the order is created. Without this check the two
+    // are never reconciled, so a caller could approve a cheap order and then
+    // post an expensive item list to this endpoint: the prices would all
+    // validate against the provider, a real production order would be placed,
+    // and only the small amount would ever have been charged.
+    const paypalOrder = await getPayPalOrder(paypalOrderId);
+
+    if (paypalOrder.status === "COMPLETED") {
+      return NextResponse.json({ error: "This payment has already been captured" }, { status: 409 });
+    }
+
+    // Allow a cent of drift for floating-point rounding, nothing more.
+    if (Math.abs(paypalOrder.amount - total) > 0.01) {
+      console.error("[api/paypal/capture-order] Amount mismatch — refusing to capture", {
+        paypalOrderId,
+        approvedAmount: paypalOrder.amount,
+        expectedTotal: total,
+      });
+      return NextResponse.json(
+        { error: "Order total does not match the approved payment. Please restart checkout." },
+        { status: 400 }
+      );
+    }
+
+    if (paypalOrder.currency !== "USD") {
+      return NextResponse.json({ error: "Unsupported payment currency" }, { status: 400 });
+    }
+
+    // 4. Capture the PayPal payment
+    const capture = await capturePayPalOrder(paypalOrderId);
+    if (capture.status !== "COMPLETED") {
+      return NextResponse.json({ error: "Payment not completed" }, { status: 402 });
+    }
+
+    // 5. Group items by fulfillment provider — a cart spanning both providers
     // (or multiple Printify shops) becomes one order row per group, since
     // each ships independently with its own tracking, same as a multi-shop
     // Etsy cart splits into separate orders.
@@ -166,7 +220,7 @@ export async function POST(req: Request) {
       fulfillmentError: string | null;
     }[] = [];
 
-    // 4. Place a production order per group, then persist + notify per row.
+    // 6. Place a production order per group, then persist + notify per row.
     for (const group of groups.values()) {
       const groupSubtotal = group.items.reduce((s, i) => s + i.unitAmount * i.quantity, 0);
       const share = subtotal > 0 ? groupSubtotal / subtotal : 0;
