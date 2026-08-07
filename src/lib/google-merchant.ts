@@ -211,6 +211,24 @@ export function mapToGoogleProduct(
     // Print-on-demand items have no manufacturer barcode. Declaring this
     // explicitly prevents "missing GTIN" disapprovals.
     identifierExists: false,
+
+    // Shipping and handling mirror the published /shipping page: production
+    // takes 3-5 business days, US delivery a further 3-7, and postage is free
+    // over $50 or a flat $4.99 below that. Supplying these per item means the
+    // feed does not depend solely on account-level shipping settings.
+    minHandlingTime: "3",
+    maxHandlingTime: "5",
+    shipping: [
+      {
+        country: "US",
+        price: {
+          value: Number.parseFloat(formatPrice(row.price)) > 50 ? "0.00" : "4.99",
+          currency,
+        },
+        minTransitTime: "3",
+        maxTransitTime: "7",
+      },
+    ],
   };
 
   return product;

@@ -63,6 +63,10 @@ export default async function ProductPage({ params }: Props) {
     // structured data must match reality, not just look complete.
     const anyVariantAvailable = product.sync_variants?.some((v) => v.availability_status === "active") ?? true;
 
+    // Mirrors the checkout calculation in /api/paypal/create-order:
+    // free over $50, otherwise a flat $4.99.
+    const shippingRate = parseFloat(price) > 50 ? 0 : 4.99;
+
     const jsonLd = {
       "@context": "https://schema.org",
       "@type": "Product",
@@ -78,15 +82,26 @@ export default async function ProductPage({ params }: Props) {
         "availability": anyVariantAvailable ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
         "url": `https://veliova.com/shop/${id}`,
         "seller": { "@type": "Organization", "name": "Veliova" },
-        // Matches the trust-badge copy shown on this same page — keep in
-        // sync with src/app/(store)/shop/[id]/ProductClient.tsx if that
-        // copy ever changes, since structured data must reflect visible content.
+        // Every value below mirrors the published policy pages (/shipping and
+        // /returns). Google requires structured data to match what a shopper
+        // can actually read on the site, so change these together.
         "shippingDetails": {
           "@type": "OfferShippingDetails",
           "shippingDestination": { "@type": "DefinedRegion", "addressCountry": "US" },
+          "shippingRate": {
+            "@type": "MonetaryAmount",
+            // "Free shipping on orders over $50, flat $4.99 below that."
+            // A single item is its own order total, so the threshold is
+            // evaluated against this product's price.
+            "value": shippingRate,
+            "currency": "USD",
+          },
           "deliveryTime": {
             "@type": "ShippingDeliveryTime",
-            "transitTime": { "@type": "QuantitativeValue", "minValue": 3, "maxValue": 5, "unitCode": "DAY" },
+            // "Production typically takes 3-5 business days before your order ships"
+            "handlingTime": { "@type": "QuantitativeValue", "minValue": 3, "maxValue": 5, "unitCode": "DAY" },
+            // "Delivery within the US typically takes an additional 3-7 business days"
+            "transitTime": { "@type": "QuantitativeValue", "minValue": 3, "maxValue": 7, "unitCode": "DAY" },
           },
         },
         "hasMerchantReturnPolicy": {
@@ -94,6 +109,12 @@ export default async function ProductPage({ params }: Props) {
           "applicableCountry": "US",
           "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
           "merchantReturnDays": 30,
+          // Returns are arranged over email and sent back by post.
+          "returnMethod": "https://schema.org/ReturnByMail",
+          // The published policy covers return postage only for damaged,
+          // misprinted or incorrect items. Change-of-mind returns do not state
+          // free postage, so this must not claim FreeReturn.
+          "returnFees": "https://schema.org/ReturnFeesCustomerResponsibility",
         },
       },
     };
