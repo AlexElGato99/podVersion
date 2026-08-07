@@ -111,7 +111,7 @@ export async function buildFacebookFeed(siteUrl: string): Promise<FacebookFeedRe
       item_group_id: String(row.item_group_id ?? row.id),
       condition: "new",
       brand: "Veliova",
-      category: mapToFacebookCategory(row.google_product_category),
+      category: mapToFacebookCategory(row.google_product_category ?? undefined),
       color: row.color?.trim() || undefined,
       size: row.size?.trim() || undefined,
     });
