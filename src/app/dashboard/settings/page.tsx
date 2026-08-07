@@ -4,12 +4,14 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Eye, EyeOff, KeyRound, ShieldCheck, CreditCard, Package, Mail,
   BarChart3, Save, Loader2, Layers, Zap, CheckCircle2, XCircle,
-  ShoppingBag, Circle, ExternalLink,
+  ShoppingBag, Circle, ExternalLink, Share2,
 } from "lucide-react";
 
 type FieldKey = "current" | "next" | "confirm";
-type TabId = "security" | "payments" | "printful" | "printify" | "general" | "email" | "analytics" | "google_merchant";
-type IntegrationSection = Exclude<TabId, "security">;
+type TabId = "security" | "payments" | "printful" | "printify" | "general" | "email" | "analytics" | "google_merchant" | "pinterest";
+// Pinterest is excluded because it needs no stored credentials: the catalog is
+// published as a public feed URL rather than through an authenticated API.
+type IntegrationSection = Exclude<TabId, "security" | "pinterest">;
 
 type Status =
   | { kind: "idle" }
@@ -37,6 +39,7 @@ const TABS: { id: TabId; label: string; icon: typeof ShieldCheck }[] = [
   { id: "email",    label: "Email", icon: Mail },
   { id: "analytics",label: "Analytics", icon: BarChart3 },
   { id: "google_merchant", label: "Google Merchant", icon: ShoppingBag },
+  { id: "pinterest", label: "Pinterest", icon: Share2 },
 ];
 
 const SECTION_INFO: Record<IntegrationSection, { title: string; description: string; fields: FieldConfig[] }> = {
@@ -418,7 +421,7 @@ export default function SettingsPage() {
       </form>
       )}
 
-      {activeTab !== "security" && (
+      {activeTab !== "security" && activeTab !== "pinterest" && (
         <IntegrationTab
           section={activeTab}
           fields={SECTION_INFO[activeTab].fields}
@@ -440,6 +443,183 @@ export default function SettingsPage() {
       )}
 
       {activeTab === "google_merchant" && <MerchantGuide />}
+      {activeTab === "pinterest" && <PinterestGuide />}
+    </div>
+  );
+}
+
+interface PinterestStatus {
+  feedUrl: string;
+  itemCount: number;
+  designCount: number;
+  variantCount: number;
+  sample: Array<{ id: string; title: string; price: string }>;
+}
+
+/**
+ * Pinterest publishes products by ingesting a hosted feed, so there is nothing
+ * to authenticate here. This panel surfaces the feed URL and what it contains,
+ * then walks through registering it as a catalog data source.
+ */
+function PinterestGuide() {
+  const [status, setStatus] = useState<PinterestStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/pinterest-status");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Could not read the feed.");
+      setStatus(json);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not read the feed.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const copyUrl = () => {
+    if (!status?.feedUrl) return;
+    navigator.clipboard.writeText(status.feedUrl).catch(() => {});
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)] shadow-sm p-6 space-y-6">
+      <div>
+        <h2 className="text-sm font-semibold text-[var(--text-primary)]">How this integration works</h2>
+        <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+          Pinterest publishes products by reading a catalog feed you host, rather than through an
+          authenticated API, so there are no keys to store here. Register the URL below once and
+          Pinterest fetches it daily, creating and updating a Product Pin for every item. This is
+          Pinterest&apos;s supported route for bulk publishing, and it avoids the spam risk that comes
+          with posting Pins individually.
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs font-semibold text-[var(--text-secondary)]">Your feed</span>
+          <button
+            type="button"
+            onClick={load}
+            disabled={loading}
+            className="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
+          >
+            {loading ? "Checking..." : "Re-check"}
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <code className="font-mono text-[11px] px-2 py-1 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)] break-all">
+            {status?.feedUrl ?? "/pinterest-feed.xml"}
+          </code>
+          <button
+            type="button"
+            onClick={copyUrl}
+            className="text-[11px] font-semibold px-2 py-1 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+          {status?.feedUrl && (
+            <a
+              href={status.feedUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--purple)] hover:underline"
+            >
+              Open <ExternalLink size={10} />
+            </a>
+          )}
+        </div>
+
+        {error && (
+          <div className="text-xs font-medium px-3 py-2 rounded-lg bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+            {error}
+          </div>
+        )}
+
+        {status && (
+          <div className="grid grid-cols-3 gap-3 pt-1">
+            <Stat label="Pins" value={status.itemCount} />
+            <Stat label="Designs" value={status.designCount} />
+            <Stat label="Variants covered" value={status.variantCount} />
+          </div>
+        )}
+
+        {status && (
+          <p className="text-[11px] text-[var(--text-muted)] leading-relaxed pt-1 border-t border-[var(--border)]">
+            One Pin per design and colour. Sizes are not visually distinct in a Pin, so publishing
+            every size would create near-identical images that Pinterest may treat as duplicate
+            content. Variants stay linked through their item group.
+          </p>
+        )}
+      </div>
+
+      <ol className="space-y-4">
+        <GuideStep n={1} title="Convert to a business account">
+          Catalogs require a Pinterest business account. Personal accounts can be converted for free
+          from Settings, Account management.
+        </GuideStep>
+
+        <GuideStep n={2} title="Claim your website">
+          In Pinterest, go to Settings, Claimed accounts, and claim <code className="font-mono">veliova.com</code>.
+          Pinterest will not ingest a catalog for an unclaimed domain, and claiming also attributes
+          Pins saved from your site back to your profile.
+        </GuideStep>
+
+        <GuideStep n={3} title="Check the required policy pages">
+          Pinterest requires easy-to-find contact details, a shipping policy and a refund policy
+          before approving a merchant. Those already exist at{" "}
+          <code className="font-mono">/contact</code>, <code className="font-mono">/shipping</code> and{" "}
+          <code className="font-mono">/returns</code>, and are linked in the site footer.
+        </GuideStep>
+
+        <GuideStep n={4} title="Add the feed as a data source">
+          Go to Pinterest Business, Catalogs, and choose to add a data source by URL. Paste the feed
+          URL above. Set the country to United States, language to English, and currency to USD.
+          Pinterest validates the feed immediately and reports any row-level errors.
+        </GuideStep>
+
+        <GuideStep n={5} title="Wait for the first ingestion">
+          The first pass usually completes within a few hours; after that Pinterest re-reads the feed
+          roughly every 24 hours, so price and availability changes flow through on their own. No
+          re-upload is needed when products change in Printify.
+        </GuideStep>
+      </ol>
+
+      <div className="pt-4 border-t border-[var(--border)] space-y-2">
+        <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+          Images are served at 1000x1500 through the site&apos;s own renderer, since Pinterest requires
+          portrait catalog images and the source mockups are square. The first fetch of each image is
+          slower while it is generated, then it is cached.
+        </p>
+        <a
+          href="https://help.pinterest.com/en/business/article/before-you-get-started-with-catalogs"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--purple)] hover:underline"
+        >
+          Pinterest catalog requirements
+          <ExternalLink size={11} />
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg bg-[var(--bg-primary)] border border-[var(--border)] px-3 py-2">
+      <div className="text-sm font-semibold text-[var(--text-primary)]">{value.toLocaleString()}</div>
+      <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{label}</div>
     </div>
   );
 }
