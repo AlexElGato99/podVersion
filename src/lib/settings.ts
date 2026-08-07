@@ -59,6 +59,9 @@ const ENV_FALLBACKS: Record<SettingsSection, Record<string, string | undefined>>
     gtm_container_id: process.env.NEXT_PUBLIC_GTM_CONTAINER_ID,
     meta_pixel_id: process.env.NEXT_PUBLIC_META_PIXEL_ID,
     meta_conversions_token: process.env.META_CONVERSIONS_TOKEN,
+    pinterest_tag_id: process.env.NEXT_PUBLIC_PINTEREST_TAG_ID,
+    /** "on" enables Enhanced Match. Off unless explicitly turned on. */
+    pinterest_enhanced_match: process.env.PINTEREST_ENHANCED_MATCH,
   },
   google_merchant: {
     google_merchant_id: process.env.GOOGLE_MERCHANT_ID,

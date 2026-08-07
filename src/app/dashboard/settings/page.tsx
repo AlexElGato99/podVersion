@@ -105,6 +105,13 @@ const SECTION_INFO: Record<IntegrationSection, { title: string; description: str
       { key: "gtm_container_id", label: "Google Tag Manager ID", placeholder: "GTM-XXXXXXX" },
       { key: "meta_pixel_id", label: "Meta (Facebook) Pixel ID" },
       { key: "meta_conversions_token", label: "Meta Conversions API Access Token", secret: true },
+      { key: "pinterest_tag_id", label: "Pinterest Tag ID", helper: "From Pinterest Ads, Conversions. Enables conversion tracking and retargeting audiences.", placeholder: "2613842985903" },
+      {
+        key: "pinterest_enhanced_match",
+        label: "Pinterest Enhanced Match",
+        helper: "Sends a SHA256 hash of a signed-in customer's email so Pinterest can attribute conversions. Sharing customer identifiers needs consent in the EU and UK. Leave off unless you have that basis.",
+        options: ["off", "on"],
+      },
     ],
   },
   google_merchant: {
