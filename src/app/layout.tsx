@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -14,13 +14,43 @@ interface SiteVerification {
   yandex_verification?: string;
 }
 
-/** Search-engine ownership-verification codes saved in Dashboard → SEO. */
+// This layout renders on every request, so the lookup is cached briefly rather
+// than hitting the database each time.
+let cache: { data: SiteVerification; expires: number } | null = null;
+const CACHE_TTL_MS = 60_000;
+
+/**
+ * Search-engine ownership-verification codes saved in Dashboard, SEO.
+ *
+ * Uses the service-role key deliberately: `seo_settings` has row level security
+ * enabled with no public policy, so the anon client silently reads back nothing
+ * and the verification meta tags never render.
+ */
 async function getSiteVerification(): Promise<SiteVerification> {
+  if (cache && cache.expires > Date.now()) return cache.data;
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return {};
+
   try {
-    const supabase = await createClient();
-    const { data } = await supabase.from("seo_settings").select("data").eq("id", "__site__").single();
-    return (data?.data ?? {}) as SiteVerification;
-  } catch {
+    const supabase = createServiceClient(url, key);
+    const { data, error } = await supabase
+      .from("seo_settings")
+      .select("data")
+      .eq("id", "__site__")
+      .maybeSingle();
+
+    if (error) {
+      console.error("[layout] Could not read site verification codes:", error.message);
+      return {};
+    }
+
+    const verification = (data?.data ?? {}) as SiteVerification;
+    cache = { data: verification, expires: Date.now() + CACHE_TTL_MS };
+    return verification;
+  } catch (err) {
+    console.error("[layout] Could not read site verification codes:", err);
     return {};
   }
 }
