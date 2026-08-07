@@ -177,8 +177,10 @@ export default function CartPage() {
               </div>
 
               {totalPrice < 50 && (
-                <div className="mt-4 rounded-xl bg-brand-950/40 border border-brand-800/40 p-3 text-xs text-brand-500 text-center">
-                  Add {formatPrice(50 - totalPrice)} more for free shipping!
+                <div className="mt-6 p-4 rounded-2xl border border-brand-200 bg-brand-50">
+                  <p className="text-sm font-medium text-brand-900 text-center">
+                    Add {formatPrice(50 - totalPrice)} more for free shipping!
+                  </p>
                 </div>
               )}
             </div>
