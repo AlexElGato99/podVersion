@@ -9,9 +9,7 @@ import {
 
 type FieldKey = "current" | "next" | "confirm";
 type TabId = "security" | "payments" | "printful" | "printify" | "general" | "email" | "analytics" | "google_merchant" | "pinterest";
-// Pinterest is excluded because it needs no stored credentials: the catalog is
-// published as a public feed URL rather than through an authenticated API.
-type IntegrationSection = Exclude<TabId, "security" | "pinterest">;
+type IntegrationSection = Exclude<TabId, "security">;
 
 type Status =
   | { kind: "idle" }
@@ -124,9 +122,17 @@ const SECTION_INFO: Record<IntegrationSection, { title: string; description: str
       { key: "supabase_webhook_secret", label: "Webhook secret", secret: true, helper: "Shared secret that authenticates incoming Supabase webhooks. Generate with: openssl rand -hex 32" },
     ],
   },
+  pinterest: {
+    title: "Domain verification",
+    description: "Pinterest can confirm domain ownership with a file served from the site root instead of a meta tag. Paste the filename it gives you and the site serves it immediately, with no redeploy needed.",
+    fields: [
+      { key: "pinterest_verify_filename", label: "Verification filename", helper: "Exactly as Pinterest names it, including the .html extension.", placeholder: "pinterest-1a2b3.html" },
+      { key: "pinterest_verify_content", label: "File contents (optional)", helper: "Open the file Pinterest gives you and paste its contents. Leave blank to serve the filename instead, which is usually sufficient." },
+    ],
+  },
 };
 
-const EMPTY_SECTION_MAP = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {}, google_merchant: {} } as Record<IntegrationSection, Record<string, string>>;
+const EMPTY_SECTION_MAP = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {}, google_merchant: {}, pinterest: {} } as Record<IntegrationSection, Record<string, string>>;
 
 const RULES = [
   { label: "At least 8 characters", test: (v: string) => v.length >= 8 },
@@ -155,12 +161,13 @@ export default function SettingsPage() {
     email: { kind: "idle" },
     analytics: { kind: "idle" },
     google_merchant: { kind: "idle" },
+    pinterest: { kind: "idle" },
   });
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
 
   const applySettings = useCallback((settings: Partial<Record<IntegrationSection, Record<string, string>>>) => {
-    const nextValues = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {}, google_merchant: {} } as Record<IntegrationSection, Record<string, string>>;
-    const nextPlaceholders = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {}, google_merchant: {} } as Record<IntegrationSection, Record<string, string>>;
+    const nextValues = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {}, google_merchant: {}, pinterest: {} } as Record<IntegrationSection, Record<string, string>>;
+    const nextPlaceholders = { payments: {}, general: {}, printful: {}, printify: {}, email: {}, analytics: {}, google_merchant: {}, pinterest: {} } as Record<IntegrationSection, Record<string, string>>;
 
     (Object.keys(SECTION_INFO) as IntegrationSection[]).forEach((section) => {
       const fetched = settings[section] ?? {};
@@ -428,7 +435,7 @@ export default function SettingsPage() {
       </form>
       )}
 
-      {activeTab !== "security" && activeTab !== "pinterest" && (
+      {activeTab !== "security" && (
         <IntegrationTab
           section={activeTab}
           fields={SECTION_INFO[activeTab].fields}

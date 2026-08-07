@@ -1,12 +1,32 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+/** Pinterest's domain-verification file, e.g. "pinterest-1a2b3c.html". */
+const PINTEREST_VERIFY_FILE = /^\/(pinterest-[A-Za-z0-9_-]+\.html)$/;
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Always forward pathname as header so root layout can read it
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-pathname", pathname);
+
+  // Pinterest expects its verification file at the domain root. Rewriting here
+  // rather than via next.config keeps the filename configurable from the
+  // dashboard, and avoids next.config's `:param(regex)` syntax, which newer
+  // path-to-regexp versions no longer substitute.
+  const verifyMatch = pathname.match(PINTEREST_VERIFY_FILE);
+  if (verifyMatch) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/api/pinterest-verify";
+    url.searchParams.set("filename", verifyMatch[1]);
+    // The header is a fallback: query strings added during a rewrite are not
+    // always preserved, and a silently dropped filename looks identical to a
+    // genuinely missing file.
+    const headers = new Headers(request.headers);
+    headers.set("x-pinterest-verify-file", verifyMatch[1]);
+    return NextResponse.rewrite(url, { request: { headers } });
+  }
 
   // Pass through the admin login page itself
   if (pathname === "/admin/login") {

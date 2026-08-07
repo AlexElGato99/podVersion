@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-export type SettingsSection = "payments" | "printful" | "printify" | "general" | "email" | "analytics" | "google_merchant";
+export type SettingsSection = "payments" | "printful" | "printify" | "general" | "email" | "analytics" | "google_merchant" | "pinterest";
 
 // Created lazily (not at module load) and guarded — if these env vars are
 // missing/misconfigured (e.g. not set for the Vercel "Production" environment
@@ -62,6 +62,12 @@ const ENV_FALLBACKS: Record<SettingsSection, Record<string, string | undefined>>
     pinterest_tag_id: process.env.NEXT_PUBLIC_PINTEREST_TAG_ID,
     /** "on" enables Enhanced Match. Off unless explicitly turned on. */
     pinterest_enhanced_match: process.env.PINTEREST_ENHANCED_MATCH,
+  },
+  pinterest: {
+    /** Exact filename Pinterest issues, e.g. "pinterest-1a2b3.html". */
+    pinterest_verify_filename: process.env.PINTEREST_VERIFY_FILENAME,
+    /** Body of that file, copied verbatim from Pinterest. */
+    pinterest_verify_content: process.env.PINTEREST_VERIFY_CONTENT,
   },
   google_merchant: {
     google_merchant_id: process.env.GOOGLE_MERCHANT_ID,

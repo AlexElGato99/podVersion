@@ -4,7 +4,7 @@ import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { getSettingsSection, invalidateSettingsCache } from "@/lib/settings";
 
-const SECTIONS = ["payments", "printful", "printify", "general", "email", "analytics", "google_merchant"] as const;
+const SECTIONS = ["payments", "printful", "printify", "general", "email", "analytics", "google_merchant", "pinterest"] as const;
 type Section = (typeof SECTIONS)[number];
 
 // Field names holding real secrets — masked on read, and only overwritten
@@ -17,6 +17,7 @@ const SECRET_FIELDS: Record<Section, string[]> = {
   email: ["email_api_key"],
   analytics: ["meta_conversions_token"],
   google_merchant: ["google_merchant_private_key", "supabase_webhook_secret"],
+  pinterest: [],
 };
 
 const supabaseAdmin = createServiceClient(
@@ -60,6 +61,7 @@ export async function GET() {
     email: {},
     analytics: {},
     google_merchant: {},
+    pinterest: {},
   };
 
   for (const section of SECTIONS) {
