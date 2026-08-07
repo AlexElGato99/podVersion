@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Eye, EyeOff, KeyRound, ShieldCheck, CreditCard, Package, Mail,
   BarChart3, Save, Loader2, Layers, Zap, CheckCircle2, XCircle,
-  ShoppingBag, Circle, ExternalLink, Share2, Facebook,
+  ShoppingBag, Circle, ExternalLink, Share2, Store,
 } from "lucide-react";
 
 type FieldKey = "current" | "next" | "confirm";
@@ -40,7 +40,7 @@ const TABS: { id: TabId; label: string; icon: typeof ShieldCheck }[] = [
   { id: "analytics",label: "Analytics", icon: BarChart3 },
   { id: "google_merchant", label: "Google Merchant", icon: ShoppingBag },
   { id: "pinterest", label: "Pinterest", icon: Share2 },
-  { id: "facebook", label: "Facebook Shop", icon: Facebook },
+  { id: "facebook", label: "Facebook Shop", icon: Store },
 ];
 
 const SECTION_INFO: Record<IntegrationSection, { title: string; description: string; fields: FieldConfig[] }> = {
