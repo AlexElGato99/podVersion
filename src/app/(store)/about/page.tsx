@@ -78,7 +78,7 @@ export default async function AboutPage() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-96 w-96 rounded-full bg-brand-600/10 blur-3xl" />
         </div>
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-brand-800/60 bg-brand-950/40 px-4 py-1.5 text-sm text-brand-500 mb-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-4 py-1.5 text-sm text-brand-600 mb-6">
             <Sparkles className="h-4 w-4" />
             {about.badge_text}
           </div>
@@ -113,7 +113,7 @@ export default async function AboutPage() {
               const Icon = VALUE_ICONS[i % VALUE_ICONS.length];
               return (
                 <div key={value.title} className="card p-6 text-center">
-                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-950/60 border border-brand-800/40">
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 border border-brand-200">
                     <Icon className="h-7 w-7 text-brand-600" />
                   </div>
                   <h3 className="font-bold text-zinc-900 mb-2">{value.title}</h3>
